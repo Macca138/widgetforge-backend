@@ -59,3 +59,18 @@ async def price_stream(websocket: WebSocket):
 @app.get("/admin/ticker", response_class=HTMLResponse)
 async def admin_ticker(request: Request):
     return templates.TemplateResponse("admin_ticker.html", {"request": request})
+
+@app.get("/widgets/ticker", response_class=HTMLResponse)
+async def widget_ticker(request: Request):
+    params = request.query_params
+    return templates.TemplateResponse("ticker_widget.html", {
+        "request": request,
+        "symbols": params.get("symbols", ""),
+        "font": params.get("font", "Arial"),
+        "font_size": params.get("fontSize", "16"),
+        "font_color": params.get("fontColor", "#ffffff"),
+        "bg_color": params.get("bgColor", "#000000"),
+        "scroll_speed": int(params.get("scrollSpeed", "30")) / 10,  # convert ms to seconds
+        "static_text": params.get("staticText", ""),
+        "websocket_host": "62.171.135.138:8000"  # adjust if you're behind a domain/proxy later
+    })

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: {{ bg_color }};
+      color: {{ font_color }};
+      font-family: {{ font }};
+      font-size: {{ font_size }}px;
+      white-space: nowrap;
+    }
+
+    #ticker {
+      display: inline-block;
+      padding: 10px;
+      animation: scroll {{ scroll_speed }}s linear infinite;
+    }
+
+    @keyframes scroll {
+      0%   { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    .up { color: #00ff00; }
+    .down { color: #ff4444; }
+  </style>
+</head>
+<body>
+  <div id="ticker">Loading...</div>
+
+  <script>
+    const ws = new WebSocket("ws://{{ websocket_host }}/ws/price-stream");
+    const symbols = "{{ symbols }}".split(",");
+    const staticText = "{{ static_text }}";
+
+    ws.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      const display = data
+        .filter(item => symbols.includes(item.symbol))
+        .map(item => {
+          const direction = item.change_pct >= 0 ? "up" : "down";
+          const arrow = item.change_pct >= 0 ? "▲" : "▼";
+          return `<span class="${direction}">${item.symbol} ${item.price} ${arrow} (${item.change_pct}%) Spread: ${item.spread}</span>`;
+        });
+
+      document.getElementById('ticker').innerHTML =
+        display.join(' &nbsp; | &nbsp; ') + (staticText ? ` &nbsp; | &nbsp; ${staticText}` : '');
+    };
+  </script>
+</body>
+</html>
