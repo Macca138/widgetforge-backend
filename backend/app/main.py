@@ -118,3 +118,33 @@ async def get_assets():
         return "<option>" + "</option><option>".join(symbols) + "</option>"
     except Exception as e:
         return f"<option disabled>Error loading symbols</option>"
+    
+@app.get("/admin/account-widget", response_class=HTMLResponse)
+async def admin_account_widget(request: Request):
+    return templates.TemplateResponse("admin_account_widget.html", {
+        "request": request
+    })
+
+@app.get("/widgets/account-widget", response_class=HTMLResponse)
+async def account_widget(request: Request):
+    params = request.query_params
+
+    return templates.TemplateResponse("account_widget.html", {
+        "request": request,
+        "layout": params.get("layout", "horizontal"),
+        "fields": params.get("fields", "name,balance,equity").split(","),
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("fontSize", "16"),
+        "font_color": params.get("fontColor", "#ffffff"),
+        "bg_color": params.get("bgColor", "#000000"),
+        "traders": params.get("traders", "[]")
+    })
+
+@app.post("/api/login-traders")
+async def login_traders(request: Request):
+    data = await request.json()
+    # Expected: { "traders": [ { "label": ..., "login": ..., "password": ..., "server": ... }, ... ] }
+
+    # TODO: Store credentials securely and launch terminals / polling
+    return {"status": "received", "trader_count": len(data.get("traders", []))}
+

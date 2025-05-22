@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Account Widget</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: {{ bg_color }};
+      color: {{ font_color }};
+      font-family: '{{ font }}', sans-serif;
+      font-size: {{ font_size }}px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: {% if layout == "vertical" %}column{% else %}row{% endif %};
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1rem;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .ticker {
+      animation: scroll 30s linear infinite;
+    }
+
+    @keyframes scroll {
+      0%   { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    .trader-box {
+      border: 1px solid #666;
+      padding: 1em;
+      min-width: 200px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 0.3em;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container {% if layout == 'ticker' %}ticker{% endif %}">
+    {% set trader_list = traders | safe | from_json %}
+    {% for trader in trader_list %}
+      <div class="trader-box">
+        {% if 'name' in fields %}
+          <div><span class="label">Name:</span> {{ trader.label }}</div>
+        {% endif %}
+        {% if 'balance' in fields %}
+          <div><span class="label">Balance:</span> $10,000.00</div>
+        {% endif %}
+        {% if 'equity' in fields %}
+          <div><span class="label">Equity:</span> $9,870.25</div>
+        {% endif %}
+        {% if 'asset' in fields %}
+          <div><span class="label">Asset:</span> GBPUSD</div>
+        {% endif %}
+        {% if 'direction' in fields %}
+          <div><span class="label">Direction:</span> BUY</div>
+        {% endif %}
+        {% if 'pl' in fields %}
+          <div><span class="label">P/L:</span> +25.60</div>
+        {% endif %}
+        {% if 'entry' in fields %}
+          <div><span class="label">Entry:</span> 1.2745</div>
+        {% endif %}
+        {% if 'sl' in fields %}
+          <div><span class="label">SL:</span> 1.2700</div>
+        {% endif %}
+        {% if 'tp' in fields %}
+          <div><span class="label">TP:</span> 1.2800</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</body>
+</html>

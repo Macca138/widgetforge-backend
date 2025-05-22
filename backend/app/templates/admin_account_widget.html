@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WidgetForge: Account Widget Builder</title>
+  <style>
+    body { font-family: Inter, sans-serif; padding: 2em; max-width: 800px; margin: auto; background: #f8f8f8; }
+    label { display: block; margin-top: 1em; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 8px; font-size: 14px; }
+    .section { margin-bottom: 2em; padding: 1em; background: #fff; border: 1px solid #ccc; }
+    .trader-box { border: 1px dashed #999; padding: 1em; margin-bottom: 1em; background: #fcfcfc; }
+    .preview-box { border: 1px solid #ccc; padding: 10px; margin-top: 2em; background: white; }
+    .iframe-box { background: #eef; padding: 10px; margin-top: 1em; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>👤 Multi-Trader Widget Builder</h1>
+
+  <form id="configForm">
+    <div class="section">
+      <h3>1. Add Traders</h3>
+      <div id="traderContainer"></div>
+      <button type="button" onclick="addTrader()">➕ Add Trader</button>
+    </div>
+
+    <div class="section">
+      <h3>2. Widget Settings</h3>
+
+      <label>Layout Format</label>
+      <select name="layout">
+        <option value="ticker">Horizontal Ticker</option>
+        <option value="horizontal">Static Horizontal</option>
+        <option value="vertical">Static Vertical</option>
+      </select>
+
+      <label>Show Fields</label>
+      <label><input type="checkbox" name="fields" value="name" checked> Trader Name</label>
+      <label><input type="checkbox" name="fields" value="balance" checked> Balance</label>
+      <label><input type="checkbox" name="fields" value="equity" checked> Equity</label>
+      <label><input type="checkbox" name="fields" value="asset" checked> Open Trade Asset</label>
+      <label><input type="checkbox" name="fields" value="direction" checked> Trade Direction</label>
+      <label><input type="checkbox" name="fields" value="pl" checked> P/L</label>
+      <label><input type="checkbox" name="fields" value="entry" checked> Entry Price</label>
+      <label><input type="checkbox" name="fields" value="sl" checked> SL</label>
+      <label><input type="checkbox" name="fields" value="tp" checked> TP</label>
+
+      <label>Font:</label>
+      <input type="text" name="font" value="Inter">
+      <label>Font Size:</label>
+      <input type="number" name="fontSize" value="16">
+      <label>Font Color:</label>
+      <input type="color" name="fontColor" value="#ffffff">
+      <label>Background Color:</label>
+      <input type="color" name="bgColor" value="#000000">
+    </div>
+
+    <div class="section">
+      <h3>3. Output Size</h3>
+      <label>Widget Width (px or %):</label>
+      <input type="text" name="widgetWidth" value="100%">
+      <label>Widget Height (px):</label>
+      <input type="text" name="widgetHeight" value="200">
+    </div>
+
+    <button type="submit">🔧 Generate Widget</button>
+  </form>
+
+  <div class="preview-box" id="previewBox" style="display:none;">
+    <h3>🔗 Your Embed Code</h3>
+    <div class="iframe-box"><code id="iframeCode"></code></div>
+    <h3>👀 Live Preview</h3>
+    <iframe id="previewFrame" style="border:none;"></iframe>
+  </div>
+
+<script>
+let traderCount = 0;
+
+function addTrader() {
+  const container = document.getElementById("traderContainer");
+  const box = document.createElement("div");
+  box.className = "trader-box";
+  box.innerHTML = `
+    <label>Label:</label><input type="text" name="label_${traderCount}">
+    <label>Login:</label><input type="text" name="login_${traderCount}">
+    <label>Password:</label><input type="password" name="password_${traderCount}">
+    <label>Server:</label><input type="text" name="server_${traderCount}">
+  `;
+  container.appendChild(box);
+  traderCount++;
+}
+
+document.getElementById("configForm").onsubmit = function(e) {
+  e.preventDefault();
+
+  const form = e.target;
+  const formData = new FormData(form);
+  const fields = Array.from(form.querySelectorAll('input[name="fields"]:checked')).map(cb => cb.value);
+  const layout = formData.get("layout");
+  const width = formData.get("widgetWidth");
+  const height = formData.get("widgetHeight");
+
+  const traders = [];
+  for (let i = 0; i < traderCount; i++) {
+    const label = formData.get(`label_${i}`);
+    const login = formData.get(`login_${i}`);
+    const password = formData.get(`password_${i}`);
+    const server = formData.get(`server_${i}`);
+    if (label && login && password && server) {
+      traders.push({ label, login, password, server });
+    }
+  }
+
+  const config = {
+    layout,
+    fields: fields.join(","),
+    font: formData.get("font"),
+    fontSize: formData.get("fontSize"),
+    fontColor: formData.get("fontColor"),
+    bgColor: formData.get("bgColor"),
+    traders: JSON.stringify(traders)
+  };
+
+  const params = new URLSearchParams(config).toString();
+  const src = `http://62.171.135.138:8000/widgets/account-widget?${params}`;
+  const iframeHTML = `<iframe src="${src}" width="${width}" height="${height}" frameborder="0"></iframe>`;
+
+  document.getElementById("iframeCode").textContent = iframeHTML;
+  document.getElementById("previewFrame").src = src;
+  document.getElementById("previewFrame").width = width;
+  document.getElementById("previewFrame").height = height;
+  document.getElementById("previewBox").style.display = "block";
+};
+</script>
+
+</body>
+</html>
