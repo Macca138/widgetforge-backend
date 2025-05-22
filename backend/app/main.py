@@ -1,11 +1,15 @@
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from app.services.cache_service import get_price
 import asyncio
 import os
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="app/templates")
 
 
@@ -58,7 +62,24 @@ async def price_stream(websocket: WebSocket):
 
 @app.get("/admin/ticker", response_class=HTMLResponse)
 async def admin_ticker(request: Request):
-    return templates.TemplateResponse("admin_ticker.html", {"request": request})
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    symbols_file = os.path.join(base_dir, "pollers", "symbols.txt")
+    with open(symbols_file, 'r') as f:
+        all_assets = [line.strip() for line in f if line.strip()]
+
+    selected_assets = request.query_params.getlist("symbols")
+    return templates.TemplateResponse("admin_ticker.html", {
+        "request": request,
+        "all_assets": all_assets,
+        "selected_assets": selected_assets,
+        "font": request.query_params.get("font", "Arial"),
+        "font_size": request.query_params.get("fontSize", "16"),
+        "font_color": request.query_params.get("fontColor", "#ffffff"),
+        "bg_color": request.query_params.get("bgColor", "#000000"),
+        "scroll_speed": request.query_params.get("scrollSpeed", "30"),
+        "static_text": request.query_params.get("staticText", ""),
+        "show_logo": request.query_params.get("show_logo", "false"),
+    })
 
 @app.get("/widgets/ticker", response_class=HTMLResponse)
 async def widget_ticker(request: Request):

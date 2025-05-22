@@ -14,53 +14,55 @@
 <body>
   <h1>🎛️ Build Your Live Ticker Widget</h1>
 
-  <form id="configForm">
-    <label>Choose Assets</label>
-    <select id="symbols" multiple size="20">
-  <!-- Options will load here -->
-</select>
+  <form method="GET" action="/widgets/ticker">
+  <fieldset>
+    <legend>Select Assets</legend>
+    {% for asset in all_assets %}
+      <label>
+        <input type="checkbox" name="symbols" value="{{ asset }}"
+          {% if asset in selected_assets %}checked{% endif %}>
+        {{ asset }}
+      </label><br>
+    {% endfor %}
+  </fieldset>
 
-    <label>Font</label>
-    <select id="font">
-      <option>Inter</option>
-      <option>Roboto</option>
-      <option>Open Sans</option>
-      <option>Lato</option>
-      <option>Montserrat</option>
-      <option>Oswald</option>
-      <option>Source Sans Pro</option>
-      <option>Courier New</option>
-    </select>
+  <label>
+    Font:
+    <input type="text" name="font" value="{{ font }}">
+  </label><br>
 
-    <label>Font Size (px)</label>
-    <input type="number" id="fontSize" value="16">
+  <label>
+    Font Size:
+    <input type="number" name="fontSize" value="{{ font_size }}">
+  </label><br>
 
-    <label>Font Color</label>
-    <input type="color" id="fontColor" value="#ffffff">
+  <label>
+    Font Color:
+    <input type="color" name="fontColor" value="{{ font_color }}">
+  </label><br>
 
-    <label>Background Color</label>
-    <input type="color" id="bgColor" value="#000000">
+  <label>
+    Background Color:
+    <input type="color" name="bgColor" value="{{ bg_color }}">
+  </label><br>
 
-    <label>Scroll Speed (ms per full scroll)</label>
-    <input type="number" id="scrollSpeed" value="30">
+  <label>
+    Scroll Speed:
+    <input type="number" name="scrollSpeed" value="{{ scroll_speed }}">
+  </label><br>
 
-    <label>Static Text</label>
-    <input type="text" id="staticText" placeholder="e.g. The best spreads in the prop space">
+  <label>
+    Static Text:
+    <input type="text" name="staticText" value="{{ static_text }}">
+  </label><br>
 
-    <label>Widget Width (px)</label>
-    <input type="number" id="widgetWidth" value="1200">
+  <label>
+    Show Logo:
+    <input type="checkbox" name="show_logo" {% if show_logo == "true" %}checked{% endif %}>
+  </label><br>
 
-    <label>Widget Height (px)</label>
-    <input type="number" id="widgetHeight" value="60">
-
-    <label>Show 5ers Logo?</label>
-    <select id="showLogo">
-      <option value="true">Yes</option>
-      <option value="false">No</option>
-    </select>
-
-    <button type="submit" style="margin-top:2em;">Generate Widget</button>
-  </form>
+  <button type="submit">Generate Widget</button>
+</form>
 
   <div class="preview-box" id="previewBox" style="display:none;">
     <h3>🔗 Your Embed Code</h3>
