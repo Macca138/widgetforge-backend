@@ -1,13 +1,18 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from app.services.cache_service import get_price
 import asyncio
 import os
 
-app = FastAPI(title="WidgetForge API")
+app = FastAPI()
+templates = Jinja2Templates(directory="app/templates")
+
 
 @app.get("/ping")
 def ping():
     return {"status": "ok"}
+
 
 @app.get("/price/{symbol}")
 def get_price_data(symbol: str):
@@ -16,12 +21,12 @@ def get_price_data(symbol: str):
         return {"error": "Not found"}
     return data
 
+
 @app.websocket("/ws/price-stream")
 async def price_stream(websocket: WebSocket):
     await websocket.accept()
     print("📡 Client connected to /ws/price-stream")
 
-    # ✅ FIX: Use absolute path to symbols.txt to avoid broken file references
     base_dir = os.path.dirname(os.path.abspath(__file__))
     symbols_file = os.path.join(base_dir, "pollers", "symbols.txt")
 
@@ -49,3 +54,8 @@ async def price_stream(websocket: WebSocket):
             await asyncio.sleep(1)
     except WebSocketDisconnect:
         print("❌ Client disconnected from /ws/price-stream")
+
+
+@app.get("/admin/ticker", response_class=HTMLResponse)
+async def admin_ticker(request: Request):
+    return templates.TemplateResponse("admin_ticker.html", {"request": request})
