@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+diskcache
+pydantic
+MetaTrader5
+jinja2
