@@ -6,6 +6,7 @@
     body { font-family: Inter, sans-serif; padding: 2em; max-width: 700px; margin: auto; background: #f8f8f8; }
     label { display: block; margin-top: 1em; font-weight: 600; }
     input, select { width: 100%; padding: 8px; font-size: 14px; }
+    .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; }
     .preview-box { border: 1px solid #ccc; padding: 10px; margin-top: 2em; background: white; }
     .iframe-box { background: #eef; padding: 10px; margin-top: 1em; font-family: monospace; }
   </style>
@@ -14,16 +15,17 @@
 <body>
   <h1>🎛️ Build Your Live Ticker Widget</h1>
 
-  <form method="GET" action="/widgets/ticker">
+  <form id="configForm">
   <fieldset>
     <legend>Select Assets</legend>
-    {% for asset in all_assets %}
-      <label>
-        <input type="checkbox" name="symbols" value="{{ asset }}"
-          {% if asset in selected_assets %}checked{% endif %}>
-        {{ asset }}
-      </label><br>
-    {% endfor %}
+    <div class="checkbox-grid">
+      {% for asset in all_assets %}
+        <label>
+          <input type="checkbox" name="assets" value="{{ asset }}" {% if asset in selected_assets %}checked{% endif %}>
+          {{ asset }}
+        </label>
+      {% endfor %}
+    </div>
   </fieldset>
 
   <label>
@@ -60,6 +62,15 @@
     Show Logo:
     <input type="checkbox" name="show_logo" {% if show_logo == "true" %}checked{% endif %}>
   </label><br>
+  <label>
+  Widget Width (px or %):
+  <input type="text" name="widgetWidth" value="100%">
+  </label><br>
+
+  <label>
+  Widget Height (px):
+  <input type="text" name="widgetHeight" value="100">
+  </label><br>
 
   <button type="submit">Generate Widget</button>
 </form>
@@ -74,41 +85,44 @@
   </div>
 
   <script>
-    document.getElementById('configForm').onsubmit = function(e) {
-      e.preventDefault();
-      const symbols = Array.from(document.getElementById('symbols').selectedOptions).map(opt => opt.value).join(',');
-      const font = document.getElementById('font').value;
-      const fontSize = document.getElementById('fontSize').value;
-      const fontColor = document.getElementById('fontColor').value;
-      const bgColor = document.getElementById('bgColor').value;
-      const scrollSpeed = document.getElementById('scrollSpeed').value;
-      const staticText = document.getElementById('staticText').value;
-      const widgetWidth = document.getElementById('widgetWidth').value;
-      const widgetHeight = document.getElementById('widgetHeight').value;
-      const showLogo = document.getElementById('showLogo').value;
+  document.getElementById('configForm').onsubmit = function(e) {
+    e.preventDefault();
 
-      const params = new URLSearchParams({
-        symbols, font, fontSize, fontColor, bgColor, scrollSpeed, staticText, showLogo
-      });
+    const checkedSymbols = Array.from(document.querySelectorAll('input[name="assets"]:checked'))
+      .map(cb => cb.value)
+      .join(',');
 
-      const src = `http://62.171.135.138:8000/widgets/ticker?${params.toString()}`;
-      const iframeHTML = `<iframe src="${src}" width="${widgetWidth}" height="${widgetHeight}" frameborder="0"></iframe>`;
+    const font = document.querySelector('[name="font"]').value;
+    const fontSize = document.querySelector('[name="fontSize"]').value;
+    const fontColor = document.querySelector('[name="fontColor"]').value;
+    const bgColor = document.querySelector('[name="bgColor"]').value;
+    const scrollSpeed = document.querySelector('[name="scrollSpeed"]').value;
+    const staticText = document.querySelector('[name="staticText"]').value;
+    const showLogo = document.querySelector('[name="show_logo"]').checked ? "true" : "false";
+    const widgetWidth = document.querySelector('[name="widgetWidth"]').value;
+    const widgetHeight = document.querySelector('[name="widgetHeight"]').value;
 
-      document.getElementById('iframeCode').textContent = iframeHTML;
-      document.getElementById('previewFrame').src = src;
-      document.getElementById('previewFrame').width = widgetWidth;
-      document.getElementById('previewFrame').height = widgetHeight;
-      document.getElementById('previewBox').style.display = 'block';
-    };
-  </script>
-  
-  <script>
-  window.onload = function () {
-    fetch("/assets")
-      .then(response => response.text())
-      .then(html => {
-        document.getElementById("symbols").innerHTML = html;
-      });
+
+    const params = new URLSearchParams({
+      symbols: checkedSymbols,
+      font,
+      fontSize,
+      fontColor,
+      bgColor,
+      scrollSpeed,
+      staticText,
+      show_logo: showLogo
+    });
+
+    const src = `http://62.171.135.138:8000/widgets/ticker?${params.toString()}`;
+    const iframeHTML = `<iframe src="${src}" width="${widgetWidth}" height="${widgetHeight}" frameborder="0"></iframe>`;
+
+    document.getElementById('iframeCode').textContent = iframeHTML;
+    document.getElementById('previewFrame').src = src;
+    document.getElementById('previewBox').style.display = 'block';
+    document.getElementById('previewFrame').width = widgetWidth;
+    document.getElementById('previewFrame').height = widgetHeight;
+
   };
 </script>
 
