@@ -8,10 +8,10 @@ import os
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+static_path = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
-
 
 @app.get("/ping")
 def ping():
@@ -79,7 +79,12 @@ async def admin_ticker(request: Request):
         "scroll_speed": request.query_params.get("scrollSpeed", "30"),
         "static_text": request.query_params.get("staticText", ""),
         "show_logo": request.query_params.get("show_logo", "false"),
+        "asset_color": request.query_params.get("asset_color", "#ffffff"),
+        "spread_color": request.query_params.get("spread_color", "#cccccc"),
+        "up_color": request.query_params.get("up_color", "#00ff00"),
+        "down_color": request.query_params.get("down_color", "#ff4444"),
     })
+
 
 @app.get("/widgets/ticker", response_class=HTMLResponse)
 async def widget_ticker(request: Request):
@@ -93,8 +98,14 @@ async def widget_ticker(request: Request):
         "bg_color": params.get("bgColor", "#000000"),
         "scroll_speed": int(params.get("scrollSpeed", "30")) / 10,  # convert ms to seconds
         "static_text": params.get("staticText", ""),
-        "websocket_host": "62.171.135.138:8000"  # adjust if you're behind a domain/proxy later
+        "show_logo": params.get("show_logo", "false"),
+        "asset_color": params.get("asset_color", "#ffffff"),
+        "spread_color": params.get("spread_color", "#cccccc"),
+        "up_color": params.get("up_color", "#00ff00"),
+        "down_color": params.get("down_color", "#ff4444"),
+        "websocket_host": "62.171.135.138:8000"
     })
+
 
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():
@@ -107,4 +118,3 @@ async def get_assets():
         return "<option>" + "</option><option>".join(symbols) + "</option>"
     except Exception as e:
         return f"<option disabled>Error loading symbols</option>"
-

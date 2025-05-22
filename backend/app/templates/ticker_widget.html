@@ -31,8 +31,23 @@
       100% { transform: translateX(-100%); }
     }
 
-    .up { color: #00ff00; }
-    .down { color: #ff4444; }
+    .asset-name {
+    color: {{ asset_color }};
+    }
+
+    .price-change.up {
+    color: {{ up_color }};
+    }
+    .price-change.down {
+    color: {{ down_color }};
+    }
+
+    .spread-text {
+    color: {{ spread_color }};
+    opacity: 0.7;
+    font-size: 90%;
+    }
+
     .logo {
       height: 30px;
       margin-left: 10px;
@@ -45,10 +60,9 @@
   </style>
 </head>
 <body>
-{% if show_logo == "true" %}
-  <img class="logo" src="/static/5ers-logo.png" alt="The 5ers Logo" />
+{% if show_logo %}
+  <img src="{{ url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
 {% endif %}
-
 
   <div id="ticker">Loading...</div>
 
@@ -64,7 +78,11 @@
         .map(item => {
           const direction = item.change_pct >= 0 ? "up" : "down";
           const arrow = item.change_pct >= 0 ? "▲" : "▼";
-          return `<span class="symbol-block ${direction}">${item.symbol} ${item.price} ${arrow} (${item.change_pct}%) Spread: ${item.spread}</span>`;
+          return `<span class="symbol-block">
+          <span class="asset-name">${item.symbol}</span>
+          <span class="price-change ${direction}">${item.price} ${arrow} (${item.change_pct}%)</span>
+          <span class="spread-text">Spread: ${item.spread}</span>
+          </span>`;
         });
 
       const text = display.join(' ') + (staticText ? ` <span class="symbol-block">${staticText}</span>` : '');

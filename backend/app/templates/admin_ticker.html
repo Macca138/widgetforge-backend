@@ -29,9 +29,19 @@
   </fieldset>
 
   <label>
-    Font:
-    <input type="text" name="font" value="{{ font }}">
-  </label><br>
+  Font:
+  <select name="font" style="font-family: {{ font }};">
+  <option value="Arial" style="font-family: Arial;" {% if font == "Arial" %}selected{% endif %}>Arial</option>
+  <option value="Inter" style="font-family: 'Inter';" {% if font == "Inter" %}selected{% endif %}>Inter</option>
+  <option value="Roboto" style="font-family: 'Roboto';" {% if font == "Roboto" %}selected{% endif %}>Roboto</option>
+  <option value="Open Sans" style="font-family: 'Open Sans';" {% if font == "Open Sans" %}selected{% endif %}>Open Sans</option>
+  <option value="Lato" style="font-family: 'Lato';" {% if font == "Lato" %}selected{% endif %}>Lato</option>
+  <option value="Montserrat" style="font-family: 'Montserrat';" {% if font == "Montserrat" %}selected{% endif %}>Montserrat</option>
+  <option value="Oswald" style="font-family: 'Oswald';" {% if font == "Oswald" %}selected{% endif %}>Oswald</option>
+  <option value="Source Sans Pro" style="font-family: 'Source Sans Pro';" {% if font == "Source Sans Pro" %}selected{% endif %}>Source Sans Pro</option>
+  </select>
+  </label>
+  <br>
 
   <label>
     Font Size:
