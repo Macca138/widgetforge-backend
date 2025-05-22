@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from app.services.cache_service import get_price
 import asyncio
 import os
+import json
 
 app = FastAPI()
 
@@ -148,3 +150,23 @@ async def login_traders(request: Request):
     # TODO: Store credentials securely and launch terminals / polling
     return {"status": "received", "trader_count": len(data.get("traders", []))}
 
+
+@app.post("/api/save-traders")
+async def save_traders(request: Request):
+    try:
+        data = await request.json()
+        traders = data.get("traders", [])
+
+        # Build absolute path to .cache/logins.json
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cache_dir = os.path.join(base_dir, ".cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        login_file = os.path.join(cache_dir, "logins.json")
+
+        # Save the trader data
+        with open(login_file, "w") as f:
+            json.dump({"traders": traders}, f, indent=2)
+
+        return JSONResponse({"status": "success", "count": len(traders)})
+    except Exception as e:
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)

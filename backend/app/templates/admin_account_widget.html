@@ -88,7 +88,7 @@ function addTrader() {
   traderCount++;
 }
 
-document.getElementById("configForm").onsubmit = function(e) {
+document.getElementById("configForm").onsubmit = async function (e) {
   e.preventDefault();
 
   const form = e.target;
@@ -104,11 +104,32 @@ document.getElementById("configForm").onsubmit = function(e) {
     const login = formData.get(`login_${i}`);
     const password = formData.get(`password_${i}`);
     const server = formData.get(`server_${i}`);
+
     if (label && login && password && server) {
-      traders.push({ label, login, password, server });
+      traders.push({
+        label,
+        login,
+        password,
+        server,
+        terminal_path: `C:/WidgetForge/MT5/Account${i + 2}`
+      });
     }
   }
 
+  // 🔁 Step 1: Send to /api/save-traders
+  const saveRes = await fetch("/api/save-traders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ traders })
+  });
+
+  const saveResult = await saveRes.json();
+  if (saveResult.status !== "success") {
+    alert("❌ Failed to save traders: " + saveResult.detail);
+    return;
+  }
+
+  // ✅ Step 2: Generate Widget
   const config = {
     layout,
     fields: fields.join(","),
