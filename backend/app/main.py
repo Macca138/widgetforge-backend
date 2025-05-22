@@ -74,3 +74,16 @@ async def widget_ticker(request: Request):
         "static_text": params.get("staticText", ""),
         "websocket_host": "62.171.135.138:8000"  # adjust if you're behind a domain/proxy later
     })
+
+@app.get("/assets", response_class=HTMLResponse)
+async def get_assets():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    symbols_file = os.path.join(base_dir, "pollers", "symbols.txt")
+
+    try:
+        with open(symbols_file, "r") as f:
+            symbols = [line.strip() for line in f if line.strip()]
+        return "<option>" + "</option><option>".join(symbols) + "</option>"
+    except Exception as e:
+        return f"<option disabled>Error loading symbols</option>"
+
