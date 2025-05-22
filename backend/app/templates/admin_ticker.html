@@ -14,6 +14,7 @@
 </head>
 <body>
   <h1>🎛️ Build Your Live Ticker Widget</h1>
+<h2 style="color:red;">[TEST] This is the updated template!</h2>
 
   <form id="configForm">
   <fieldset>
@@ -28,112 +29,114 @@
     </div>
   </fieldset>
 
-  <label>
-  Font:
-  <select name="font" style="font-family: {{ font }};">
-  <option value="Arial" style="font-family: Arial;" {% if font == "Arial" %}selected{% endif %}>Arial</option>
-  <option value="Inter" style="font-family: 'Inter';" {% if font == "Inter" %}selected{% endif %}>Inter</option>
-  <option value="Roboto" style="font-family: 'Roboto';" {% if font == "Roboto" %}selected{% endif %}>Roboto</option>
-  <option value="Open Sans" style="font-family: 'Open Sans';" {% if font == "Open Sans" %}selected{% endif %}>Open Sans</option>
-  <option value="Lato" style="font-family: 'Lato';" {% if font == "Lato" %}selected{% endif %}>Lato</option>
-  <option value="Montserrat" style="font-family: 'Montserrat';" {% if font == "Montserrat" %}selected{% endif %}>Montserrat</option>
-  <option value="Oswald" style="font-family: 'Oswald';" {% if font == "Oswald" %}selected{% endif %}>Oswald</option>
-  <option value="Source Sans Pro" style="font-family: 'Source Sans Pro';" {% if font == "Source Sans Pro" %}selected{% endif %}>Source Sans Pro</option>
-  </select>
+  <label>Font:
+    <select name="font" style="font-family: {{ font }};">
+      <option value="Arial" style="font-family: Arial;" {% if font == "Arial" %}selected{% endif %}>Arial</option>
+      <option value="Inter" style="font-family: 'Inter';" {% if font == "Inter" %}selected{% endif %}>Inter</option>
+      <option value="Roboto" style="font-family: 'Roboto';" {% if font == "Roboto" %}selected{% endif %}>Roboto</option>
+      <option value="Open Sans" style="font-family: 'Open Sans';" {% if font == "Open Sans" %}selected{% endif %}>Open Sans</option>
+      <option value="Lato" style="font-family: 'Lato';" {% if font == "Lato" %}selected{% endif %}>Lato</option>
+      <option value="Montserrat" style="font-family: 'Montserrat';" {% if font == "Montserrat" %}selected{% endif %}>Montserrat</option>
+      <option value="Oswald" style="font-family: 'Oswald';" {% if font == "Oswald" %}selected{% endif %}>Oswald</option>
+      <option value="Source Sans Pro" style="font-family: 'Source Sans Pro';" {% if font == "Source Sans Pro" %}selected{% endif %}>Source Sans Pro</option>
+    </select>
   </label>
-  <br>
 
-  <label>
-    Font Size:
+  <label>Font Size:
     <input type="number" name="fontSize" value="{{ font_size }}">
-  </label><br>
+  </label>
 
-  <label>
-    Font Color:
+  <label>Font Color:
     <input type="color" name="fontColor" value="{{ font_color }}">
-  </label><br>
+  </label>
 
-  <label>
-    Background Color:
+  <label>Background Color:
     <input type="color" name="bgColor" value="{{ bg_color }}">
-  </label><br>
+  </label>
 
-  <label>
-    Scroll Speed:
+  <label>Scroll Speed:
     <input type="number" name="scrollSpeed" value="{{ scroll_speed }}">
-  </label><br>
+  </label>
 
-  <label>
-    Static Text:
+  <label>Static Text:
     <input type="text" name="staticText" value="{{ static_text }}">
-  </label><br>
+  </label>
 
-  <label>
-    Show Logo:
+  <label>Show Logo:
     <input type="checkbox" name="show_logo" {% if show_logo == "true" %}checked{% endif %}>
-  </label><br>
-  <label>
-  Widget Width (px or %):
-  <input type="text" name="widgetWidth" value="100%">
-  </label><br>
+  </label>
 
-  <label>
-  Widget Height (px):
-  <input type="text" name="widgetHeight" value="100">
-  </label><br>
+  <label>Widget Width (px or %):
+    <input type="text" name="widgetWidth" value="100%">
+  </label>
+
+  <label>Widget Height (px):
+    <input type="text" name="widgetHeight" value="100">
+  </label>
+
+  <!-- ✅ NEW COLOR CONTROLS -->
+  <label>Asset Name Color:
+    <input type="color" name="assetColor" value="#ffffff">
+  </label>
+
+  <label>Spread Text Color:
+    <input type="color" name="spreadColor" value="#999999">
+  </label>
+
+  <label>Price Up Color:
+    <input type="color" name="upColor" value="#00ff00">
+  </label>
+
+  <label>Price Down Color:
+    <input type="color" name="downColor" value="#ff4444">
+  </label>
 
   <button type="submit">Generate Widget</button>
 </form>
 
-  <div class="preview-box" id="previewBox" style="display:none;">
-    <h3>🔗 Your Embed Code</h3>
-    <div class="iframe-box">
-      <code id="iframeCode"></code>
-    </div>
-    <h3>👀 Live Preview</h3>
-    <iframe id="previewFrame" width="100%" height="100" style="border:none;"></iframe>
+<div class="preview-box" id="previewBox" style="display:none;">
+  <h3>🔗 Your Embed Code</h3>
+  <div class="iframe-box">
+    <code id="iframeCode"></code>
   </div>
+  <h3>👀 Live Preview</h3>
+  <iframe id="previewFrame" width="100%" height="100" style="border:none;"></iframe>
+</div>
 
-  <script>
-  document.getElementById('configForm').onsubmit = function(e) {
-    e.preventDefault();
+<script>
+document.getElementById('configForm').onsubmit = function(e) {
+  e.preventDefault();
 
-    const checkedSymbols = Array.from(document.querySelectorAll('input[name="assets"]:checked'))
-      .map(cb => cb.value)
-      .join(',');
+  const checkedSymbols = Array.from(document.querySelectorAll('input[name="assets"]:checked'))
+    .map(cb => cb.value)
+    .join(',');
 
-    const font = document.querySelector('[name="font"]').value;
-    const fontSize = document.querySelector('[name="fontSize"]').value;
-    const fontColor = document.querySelector('[name="fontColor"]').value;
-    const bgColor = document.querySelector('[name="bgColor"]').value;
-    const scrollSpeed = document.querySelector('[name="scrollSpeed"]').value;
-    const staticText = document.querySelector('[name="staticText"]').value;
-    const showLogo = document.querySelector('[name="show_logo"]').checked ? "true" : "false";
-    const widgetWidth = document.querySelector('[name="widgetWidth"]').value;
-    const widgetHeight = document.querySelector('[name="widgetHeight"]').value;
+  const params = new URLSearchParams({
+    symbols: checkedSymbols,
+    font: document.querySelector('[name="font"]').value,
+    fontSize: document.querySelector('[name="fontSize"]').value,
+    fontColor: document.querySelector('[name="fontColor"]').value,
+    bgColor: document.querySelector('[name="bgColor"]').value,
+    scrollSpeed: document.querySelector('[name="scrollSpeed"]').value,
+    staticText: document.querySelector('[name="staticText"]').value,
+    show_logo: document.querySelector('[name="show_logo"]').checked ? "true" : "false",
+    asset_color: document.querySelector('[name="assetColor"]').value,
+    spread_color: document.querySelector('[name="spreadColor"]').value,
+    up_color: document.querySelector('[name="upColor"]').value,
+    down_color: document.querySelector('[name="downColor"]').value
+  });
 
+  const widgetWidth = document.querySelector('[name="widgetWidth"]').value;
+  const widgetHeight = document.querySelector('[name="widgetHeight"]').value;
+  const src = `http://62.171.135.138:8000/widgets/ticker?${params.toString()}`;
+  const iframeHTML = `<iframe src="${src}" width="${widgetWidth}" height="${widgetHeight}" frameborder="0"></iframe>`;
 
-    const params = new URLSearchParams({
-      symbols: checkedSymbols,
-      font,
-      fontSize,
-      fontColor,
-      bgColor,
-      scrollSpeed,
-      staticText,
-      show_logo: showLogo
-    });
-
-    const src = `http://62.171.135.138:8000/widgets/ticker?${params.toString()}`;
-    const iframeHTML = `<iframe src="${src}" width="${widgetWidth}" height="${widgetHeight}" frameborder="0"></iframe>`;
-
-    document.getElementById('iframeCode').textContent = iframeHTML;
-    document.getElementById('previewFrame').src = src;
-    document.getElementById('previewBox').style.display = 'block';
-    document.getElementById('previewFrame').width = widgetWidth;
-    document.getElementById('previewFrame').height = widgetHeight;
-
-  };
+  document.getElementById('iframeCode').textContent = iframeHTML;
+  document.getElementById('previewFrame').src = src;
+  document.getElementById('previewBox').style.display = 'block';
+  document.getElementById('previewFrame').width = widgetWidth;
+  document.getElementById('previewFrame').height = widgetHeight;
+};
 </script>
 
 </body>
