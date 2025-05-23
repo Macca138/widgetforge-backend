@@ -174,7 +174,7 @@ async def save_traders(request: Request, x_api_key: str = Header(None)):
         # Assign each trader to Account2 through Account10
         assigned = []
         for i, trader in enumerate(traders):
-            trader["terminal_path"] = f"C:/WidgetForge/MT5/Account{i + 2}"
+            trader["terminal_path"] = f"C:/MT5Terminals/Account{i + 2}"
     
         # Obfuscate password
             plain_pw = trader["password"]

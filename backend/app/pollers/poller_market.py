@@ -6,7 +6,7 @@ import pytz
 
 
 def connect_mt5():
-    if not mt5.initialize():
+    if not mt5.initialize(path="C:/MT5Terminals/Account1/terminal64.exe"):
         raise RuntimeError("❌ MT5 initialization failed")
     print("✅ Connected to MT5")
 
