@@ -2,6 +2,7 @@ import MetaTrader5 as mt5
 import os
 import json
 import time
+import base64
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", ".cache")
 LOGIN_FILE = os.path.join(CACHE_DIR, "logins.json")
@@ -12,7 +13,7 @@ def save_json(path, data):
 
 def poll_trader(trader):
     login = trader["login"]
-    password = trader["password"]
+    password = base64.b64decode(trader["password"]).decode()
     server = trader["server"]
     terminal_path = trader["terminal_path"]
     label = trader["label"]

@@ -7,6 +7,9 @@ from app.services.cache_service import get_price
 import asyncio
 import os
 import json
+import subprocess
+import signal
+import base64
 
 app = FastAPI()
 
@@ -142,31 +145,61 @@ async def account_widget(request: Request):
         "traders": params.get("traders", "[]")
     })
 
-@app.post("/api/login-traders")
-async def login_traders(request: Request):
-    data = await request.json()
-    # Expected: { "traders": [ { "label": ..., "login": ..., "password": ..., "server": ... }, ... ] }
-
-    # TODO: Store credentials securely and launch terminals / polling
-    return {"status": "received", "trader_count": len(data.get("traders", []))}
-
-
 @app.post("/api/save-traders")
 async def save_traders(request: Request):
     try:
         data = await request.json()
         traders = data.get("traders", [])
 
-        # Build absolute path to .cache/logins.json
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if len(traders) > 9:
+            return JSONResponse({"status": "error", "detail": "Only 9 terminals are available."}, status_code=400)
+
+        # Assign each trader to Account2 through Account10
+        assigned = []
+        for i, trader in enumerate(traders):
+            trader["terminal_path"] = f"C:/WidgetForge/MT5/Account{i + 2}"
+    
+        # Obfuscate password
+            plain_pw = trader["password"]
+            encoded_pw = base64.b64encode(plain_pw.encode()).decode()
+            trader["password"] = encoded_pw
+
+            assigned.append(trader)
+
+
+        # Determine paths
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # /widgetforge
         cache_dir = os.path.join(base_dir, ".cache")
-        os.makedirs(cache_dir, exist_ok=True)
         login_file = os.path.join(cache_dir, "logins.json")
+        pid_file = os.path.join(cache_dir, "poller.pid")
+        poll_script = os.path.join(base_dir, "backend", "app", "pollers", "poller_accounts.py")
 
-        # Save the trader data
+        # Save login file
+        os.makedirs(cache_dir, exist_ok=True)
         with open(login_file, "w") as f:
-            json.dump({"traders": traders}, f, indent=2)
+            json.dump({"traders": assigned}, f, indent=2)
 
-        return JSONResponse({"status": "success", "count": len(traders)})
+        # Kill previous poller (if any)
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, "r") as pf:
+                    old_pid = int(pf.read())
+                os.kill(old_pid, signal.SIGTERM)
+                print(f"🛑 Killed old poller process: PID {old_pid}")
+                os.remove(pid_file)
+            except Exception as e:
+                print(f"⚠️ Failed to kill old poller: {e}")
+
+        # Start new poller
+        try:
+            process = subprocess.Popen(["python", poll_script])
+            with open(pid_file, "w") as pf:
+                pf.write(str(process.pid))
+            print(f"🚀 Started new poller: PID {process.pid}")
+        except Exception as e:
+            return JSONResponse({"status": "error", "detail": f"Failed to start poller: {str(e)}"}, status_code=500)
+
+        return JSONResponse({"status": "success", "count": len(assigned)})
+
     except Exception as e:
         return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
