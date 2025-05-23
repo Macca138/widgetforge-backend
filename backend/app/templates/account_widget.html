@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
   <title>Account Widget</title>
+  <meta charset="UTF-8" />
   <style>
     body {
       margin: 0;
@@ -19,16 +19,6 @@
       gap: 1rem;
       padding: 1rem;
       overflow: hidden;
-      white-space: nowrap;
-    }
-
-    .ticker {
-      animation: scroll 30s linear infinite;
-    }
-
-    @keyframes scroll {
-      0%   { transform: translateX(100%); }
-      100% { transform: translateX(-100%); }
     }
 
     .trader-box {
@@ -47,39 +37,53 @@
   </style>
 </head>
 <body>
-  <div class="container {% if layout == 'ticker' %}ticker{% endif %}">
-    {% set trader_list = traders | safe | from_json %}
-    {% for trader in trader_list %}
-      <div class="trader-box">
-        {% if 'name' in fields %}
-          <div><span class="label">Name:</span> {{ trader.label }}</div>
-        {% endif %}
-        {% if 'balance' in fields %}
-          <div><span class="label">Balance:</span> $10,000.00</div>
-        {% endif %}
-        {% if 'equity' in fields %}
-          <div><span class="label">Equity:</span> $9,870.25</div>
-        {% endif %}
-        {% if 'asset' in fields %}
-          <div><span class="label">Asset:</span> GBPUSD</div>
-        {% endif %}
-        {% if 'direction' in fields %}
-          <div><span class="label">Direction:</span> BUY</div>
-        {% endif %}
-        {% if 'pl' in fields %}
-          <div><span class="label">P/L:</span> +25.60</div>
-        {% endif %}
-        {% if 'entry' in fields %}
-          <div><span class="label">Entry:</span> 1.2745</div>
-        {% endif %}
-        {% if 'sl' in fields %}
-          <div><span class="label">SL:</span> 1.2700</div>
-        {% endif %}
-        {% if 'tp' in fields %}
-          <div><span class="label">TP:</span> 1.2800</div>
-        {% endif %}
-      </div>
-    {% endfor %}
-  </div>
+  <div id="widgetContainer" class="container {% if layout == 'ticker' %}ticker{% endif %}"></div>
+
+  <script>
+    const fields = {{ fields | tojson }};
+    const traderList = JSON.parse({{ traders | tojson | safe }});
+
+    const container = document.getElementById("widgetContainer");
+
+    function fetchAndRender() {
+      container.innerHTML = "";
+
+      traderList.forEach(trader => {
+        const login = trader.login;
+        const label = trader.label;
+
+        fetch(`/static/data/trader_${login}.json`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            const box = document.createElement("div");
+            box.className = "trader-box";
+
+            if (!data) {
+              box.innerHTML = `<div><span class="label">${label}:</span> No data found</div>`;
+              container.appendChild(box);
+              return;
+            }
+
+            if (fields.includes("name")) box.innerHTML += `<div><span class="label">Name:</span> ${data.label}</div>`;
+            if (fields.includes("balance")) box.innerHTML += `<div><span class="label">Balance:</span> $${data.balance.toFixed(2)}</div>`;
+            if (fields.includes("equity")) box.innerHTML += `<div><span class="label">Equity:</span> $${data.equity.toFixed(2)}</div>`;
+            if (fields.includes("asset")) box.innerHTML += `<div><span class="label">Asset:</span> ${data.symbol || "-"}</div>`;
+            if (fields.includes("direction")) box.innerHTML += `<div><span class="label">Direction:</span> ${data.direction || "-"}</div>`;
+            if (fields.includes("pl")) box.innerHTML += `<div><span class="label">P/L:</span> ${data.pl !== undefined ? data.pl.toFixed(2) : "-"}</div>`;
+            if (fields.includes("entry")) box.innerHTML += `<div><span class="label">Entry:</span> ${data.entry || "-"}</div>`;
+            if (fields.includes("sl")) box.innerHTML += `<div><span class="label">SL:</span> ${data.sl || "-"}</div>`;
+            if (fields.includes("tp")) box.innerHTML += `<div><span class="label">TP:</span> ${data.tp || "-"}</div>`;
+
+            container.appendChild(box);
+          })
+          .catch(err => {
+            console.error("Error loading data for trader:", login, err);
+          });
+      });
+    }
+
+    fetchAndRender();
+    setInterval(fetchAndRender, 2000); // Update every 2 seconds
+  </script>
 </body>
 </html>

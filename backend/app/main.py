@@ -22,7 +22,12 @@ app = FastAPI()
 static_path = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
+# ✅ Mount .cache as /static/data
+cache_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".cache"))
+app.mount("/static/data", StaticFiles(directory=cache_path), name="data")
+
 templates = Jinja2Templates(directory="app/templates")
+
 
 @app.get("/ping")
 def ping():
