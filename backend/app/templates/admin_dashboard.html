@@ -60,16 +60,13 @@
     <!-- Add more widgets here later -->
   </div>
 
-  <div class="main-content">
-    <iframe id="widgetFrame" src="/admin/ticker"></iframe>
-  </div>
+  <const apiKey = "Alpha5ersDeliciousPool!";
+function loadWidget(type) {
+  const frame = document.getElementById("widgetFrame");
+  if (type === 'ticker') frame.src = `/admin/ticker?key=${apiKey}`;
+  else if (type === 'account') frame.src = `/admin/account-widget?key=${apiKey}`;
+}
 
-  <script>
-    function loadWidget(type) {
-      const frame = document.getElementById("widgetFrame");
-      if (type === 'ticker') frame.src = "/admin/ticker";
-      else if (type === 'account') frame.src = "/admin/account-widget";
-    }
   </script>
 
 </body>

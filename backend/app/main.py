@@ -5,6 +5,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from app.services.cache_service import get_price
 from dotenv import load_dotenv
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 import asyncio
 import os
 import json
@@ -21,6 +23,7 @@ AUTH_TOKEN = os.getenv("API_KEY")
 
 
 app = FastAPI()
+app.add_middleware(AdminAuthMiddleware)
 
 static_path = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_path), name="static")
