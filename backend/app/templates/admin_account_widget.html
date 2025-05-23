@@ -131,9 +131,9 @@ document.getElementById("configForm").onsubmit = async function (e) {
   const saveRes = await fetch("/api/save-traders", {
   method: "POST",
   headers: {
-    "Content-Type": "application/json",
-    "X-API-KEY": "Alpha5ersDeliciousPool!"
-  },
+  "Content-Type": "application/json",
+  "X-API-KEY": apiKey
+},
   body: JSON.stringify({ traders })
 });
 
