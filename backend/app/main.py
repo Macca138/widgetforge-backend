@@ -1,15 +1,21 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Header
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from app.services.cache_service import get_price
+from dotenv import load_dotenv
 import asyncio
 import os
 import json
 import subprocess
 import signal
 import base64
+
+load_dotenv()
+
+AUTH_TOKEN = os.getenv("API_KEY")
+
 
 app = FastAPI()
 
@@ -146,7 +152,10 @@ async def account_widget(request: Request):
     })
 
 @app.post("/api/save-traders")
-async def save_traders(request: Request):
+async def save_traders(request: Request, x_api_key: str = Header(None)):
+    if x_api_key != AUTH_TOKEN:
+        return JSONResponse({"status": "unauthorized"}, status_code=401)
+
     try:
         data = await request.json()
         traders = data.get("traders", [])

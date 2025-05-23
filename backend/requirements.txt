@@ -4,3 +4,4 @@ diskcache
 pydantic
 MetaTrader5
 jinja2
+python-dotenv

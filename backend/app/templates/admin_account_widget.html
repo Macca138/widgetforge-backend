@@ -118,10 +118,14 @@ document.getElementById("configForm").onsubmit = async function (e) {
 
   // 🔁 Step 1: Send to /api/save-traders
   const saveRes = await fetch("/api/save-traders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ traders })
-  });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-API-KEY": "Alpha5ersDeliciousPool!"
+  },
+  body: JSON.stringify({ traders })
+});
+
 
   const saveResult = await saveRes.json();
   if (saveResult.status !== "success") {
