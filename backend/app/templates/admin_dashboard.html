@@ -76,8 +76,10 @@
       else if (type === 'account') frame.src = `/admin/account-widget?key=${apiKey}`;
     }
 
-    // Load default widget on page load
-    loadWidget('ticker');
+    window.onload = () => {
+      console.log("KEY in session:", apiKey);
+      loadWidget('ticker');
+    };
   </script>
 
 </body>

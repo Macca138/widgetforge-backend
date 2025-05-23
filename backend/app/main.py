@@ -21,8 +21,6 @@ load_dotenv(dotenv_path=env_path)
 
 AUTH_TOKEN = os.getenv("API_KEY")
 
-
-
 class AdminAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if request.url.path.startswith("/admin"):
