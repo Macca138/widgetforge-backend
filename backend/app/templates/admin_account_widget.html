@@ -80,8 +80,8 @@ fetch("/api/save-traders", {
     "Content-Type": "application/json",
     "X-API-KEY": apiKey
   },
-  ...
-})
+  body: JSON.stringify({ traders })
+});
 
 let traderCount = 0;
 

@@ -111,8 +111,8 @@ fetch("/api/save-traders", {
     "Content-Type": "application/json",
     "X-API-KEY": apiKey
   },
-  ...
-})
+  body: JSON.stringify({ traders })
+});
 
 document.getElementById('configForm').onsubmit = function(e) {
   e.preventDefault();
