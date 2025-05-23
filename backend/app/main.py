@@ -12,7 +12,10 @@ import subprocess
 import signal
 import base64
 
-load_dotenv()
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(dotenv_path=env_path)
 
 AUTH_TOKEN = os.getenv("API_KEY")
 
