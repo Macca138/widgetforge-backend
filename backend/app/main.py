@@ -16,7 +16,7 @@ import base64
 
 from pathlib import Path
 
-env_path = Path(__file__).resolve().parents[2] / ".env"
+env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(dotenv_path=env_path)
 
 AUTH_TOKEN = os.getenv("API_KEY")
