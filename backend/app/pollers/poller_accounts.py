@@ -4,7 +4,9 @@ import json
 import time
 import base64
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", ".cache")
+# Absolute base path of the project (up 3 levels from here)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+CACHE_DIR = os.path.join(BASE_DIR, ".cache")
 LOGIN_FILE = os.path.join(CACHE_DIR, "logins.json")
 
 def save_json(path, data):
@@ -18,9 +20,13 @@ def poll_trader(trader):
     terminal_path = trader["terminal_path"]
     label = trader["label"]
 
-    # Initialize MT5 connection
+    terminal_exe = os.path.join(terminal_path, "terminal64.exe")
+    if not os.path.exists(terminal_exe):
+        print(f"❌ terminal64.exe not found at {terminal_exe} for {label} ({login})")
+        return
+
     initialized = mt5.initialize(
-        path=os.path.join(terminal_path, "terminal64.exe"),
+        path=terminal_exe,
         login=int(login),
         server=server,
         password=password
@@ -30,14 +36,12 @@ def poll_trader(trader):
         print(f"❌ Failed to initialize terminal for {label} ({login})")
         return
 
-    # Get account info
     account_info = mt5.account_info()
     if account_info is None:
         print(f"⚠️ No account info for {label}")
         mt5.shutdown()
         return
 
-    # Get open trade (first position only for now)
     positions = mt5.positions_get()
     trade_data = {}
     if positions:
@@ -58,16 +62,14 @@ def poll_trader(trader):
         **trade_data
     }
 
-    # Save to cache file
     out_path = os.path.join(CACHE_DIR, f"trader_{login}.json")
     save_json(out_path, data)
     mt5.shutdown()
     print(f"✅ Updated trader: {label} ({login})")
 
-
 def run_pollers():
     if not os.path.exists(LOGIN_FILE):
-        print("❌ logins.json not found")
+        print("❌ logins.json not found at", LOGIN_FILE)
         return
 
     with open(LOGIN_FILE, "r") as f:
@@ -83,4 +85,3 @@ def run_pollers():
 
 if __name__ == "__main__":
     run_pollers()
-
