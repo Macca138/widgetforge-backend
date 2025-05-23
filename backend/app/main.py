@@ -22,6 +22,16 @@ load_dotenv(dotenv_path=env_path)
 AUTH_TOKEN = os.getenv("API_KEY")
 
 
+
+class AdminAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path.startswith("/admin"):
+            key = request.headers.get("X-API-KEY") or request.query_params.get("key")
+            if key != AUTH_TOKEN:
+                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+        return await call_next(request)
+
+
 app = FastAPI()
 app.add_middleware(AdminAuthMiddleware)
 
