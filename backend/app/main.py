@@ -205,6 +205,8 @@ async def save_traders(request: Request, x_api_key: str = Header(None)):
 
         # Determine paths
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # /widgetforge
+        cbackend_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.abspath(os.path.join(backend_dir, "..", ".."))
         cache_dir = os.path.join(base_dir, ".cache")
         login_file = os.path.join(cache_dir, "logins.json")
         pid_file = os.path.join(cache_dir, "poller.pid")
