@@ -208,7 +208,7 @@ async def save_traders(request: Request, x_api_key: str = Header(None)):
         cache_dir = os.path.join(base_dir, ".cache")
         login_file = os.path.join(cache_dir, "logins.json")
         pid_file = os.path.join(cache_dir, "poller.pid")
-        poll_script = os.path.join(base_dir, "backend", "app", "pollers", "poller_accounts.py")
+        poll_script = os.path.join(base_dir, "app", "pollers", "poller_accounts.py")
 
         # Save login file
         os.makedirs(cache_dir, exist_ok=True)
