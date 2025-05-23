@@ -204,13 +204,13 @@ async def save_traders(request: Request, x_api_key: str = Header(None)):
 
 
         # Determine paths
-        backend_dir = os.path.dirname(os.path.abspath(__file__))  # C:/WidgetForge/widgetforge-backend/backend/app
-        base_dir = os.path.abspath(os.path.join(backend_dir, "..", ".."))       # C:/WidgetForge/widgetforge-backend
+        # Determine paths
+        backend_dir = os.path.dirname(os.path.abspath(__file__))  # C:/WidgetForge/widgetforge-backend/backend
+        base_dir = os.path.abspath(os.path.join(backend_dir, "..", ".."))  # C:/WidgetForge/widgetforge-backend
         cache_dir = os.path.join(base_dir, ".cache")
         login_file = os.path.join(cache_dir, "logins.json")
         pid_file = os.path.join(cache_dir, "poller.pid")
-        poll_script = os.path.join(backend_dir, "pollers", "poller_accounts.py")
-
+        poll_script = os.path.join(backend_dir, "app", "pollers", "poller_accounts.py")  # ✅ FIXED path
 
         # Save login file
         os.makedirs(cache_dir, exist_ok=True)
