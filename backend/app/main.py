@@ -104,6 +104,11 @@ async def admin_ticker(request: Request):
         "down_color": request.query_params.get("down_color", "#ff4444"),
     })
 
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    return templates.TemplateResponse("admin_dashboard.html", {
+        "request": request
+    })
 
 @app.get("/widgets/ticker", response_class=HTMLResponse)
 async def widget_ticker(request: Request):
@@ -220,3 +225,5 @@ async def save_traders(request: Request, x_api_key: str = Header(None)):
 
     except Exception as e:
         return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
+    
+
