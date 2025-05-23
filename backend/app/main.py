@@ -20,6 +20,7 @@ env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(dotenv_path=env_path)
 
 AUTH_TOKEN = os.getenv("API_KEY")
+print("🔑 AUTH_TOKEN loaded from .env:", AUTH_TOKEN)
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
