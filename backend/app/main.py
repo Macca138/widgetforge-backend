@@ -91,6 +91,10 @@ async def price_stream(websocket: WebSocket):
     except WebSocketDisconnect:
         print("❌ Client disconnected from /ws/price-stream")
 
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login(request: Request):
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
 
 @app.get("/admin/ticker", response_class=HTMLResponse)
 async def admin_ticker(request: Request):

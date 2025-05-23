@@ -57,16 +57,27 @@
     <h2>WidgetForge</h2>
     <button onclick="loadWidget('ticker')">📊 Market Ticker Builder</button>
     <button onclick="loadWidget('account')">👥 Account Widget Builder</button>
-    <!-- Add more widgets here later -->
   </div>
 
-  <const apiKey = "Alpha5ersDeliciousPool!";
-function loadWidget(type) {
-  const frame = document.getElementById("widgetFrame");
-  if (type === 'ticker') frame.src = `/admin/ticker?key=${apiKey}`;
-  else if (type === 'account') frame.src = `/admin/account-widget?key=${apiKey}`;
-}
+  <div class="main-content">
+    <iframe id="widgetFrame" src=""></iframe>
+  </div>
 
+  <script>
+    const apiKey = sessionStorage.getItem("WIDGETFORGE_KEY");
+
+    if (!apiKey) {
+      window.location.href = "/admin/login";
+    }
+
+    function loadWidget(type) {
+      const frame = document.getElementById("widgetFrame");
+      if (type === 'ticker') frame.src = `/admin/ticker?key=${apiKey}`;
+      else if (type === 'account') frame.src = `/admin/account-widget?key=${apiKey}`;
+    }
+
+    // Load default widget on page load
+    loadWidget('ticker');
   </script>
 
 </body>

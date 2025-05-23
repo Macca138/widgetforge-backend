@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WidgetForge Admin Login</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Inter, sans-serif;
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .login-box {
+      background: #1e293b;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      max-width: 300px;
+      width: 100%;
+    }
+
+    h2 {
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .error {
+      color: #f87171;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>Admin Login</h2>
+    <input type="password" id="passwordInput" placeholder="Enter access key" />
+    <button onclick="login()">Login</button>
+    <div class="error" id="errorBox" style="display:none;">❌ Incorrect key</div>
+  </div>
+
+  <script>
+    const correctKey = "Alpha5ersDeliciousPool!";
+
+    function login() {
+      const entered = document.getElementById("passwordInput").value;
+      if (entered === correctKey) {
+        sessionStorage.setItem("WIDGETFORGE_KEY", entered);
+        window.location.href = "/admin/dashboard";
+      } else {
+        document.getElementById("errorBox").style.display = "block";
+      }
+    }
+  </script>
+</body>
+</html>
