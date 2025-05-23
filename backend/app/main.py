@@ -8,16 +8,14 @@ from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import asyncio
+from pathlib import Path
 import os
 import json
 import subprocess
 import signal
 import base64
 
-from pathlib import Path
-
-env_path = Path(__file__).resolve().parents[1] / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv("C:/WidgetForge/widgetforge-backend/.env")
 
 AUTH_TOKEN = os.getenv("API_KEY")
 print("🔑 AUTH_TOKEN loaded from .env:", AUTH_TOKEN)
