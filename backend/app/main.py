@@ -22,12 +22,12 @@ print("🔑 AUTH_TOKEN loaded from .env:", AUTH_TOKEN)
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.url.path.startswith("/admin"):
+        path = request.url.path
+        if path.startswith("/admin/") and path not in ["/admin/login", "/admin/dashboard"]:
             key = request.headers.get("X-API-KEY") or request.query_params.get("key")
             if key != AUTH_TOKEN:
                 return JSONResponse({"detail": "Unauthorized"}, status_code=401)
         return await call_next(request)
-
 
 app = FastAPI()
 app.add_middleware(AdminAuthMiddleware)

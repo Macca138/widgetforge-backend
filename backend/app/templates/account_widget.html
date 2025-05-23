@@ -41,7 +41,13 @@
 
   <script>
     const fields = {{ fields | tojson }};
-    const traderList = JSON.parse({{ traders | tojson | safe }});
+    let traderList = [];
+try {
+  traderList = JSON.parse({{ traders | tojson | safe }});
+} catch (e) {
+  console.warn("⚠️ No trader list found or malformed:", e);
+}
+
 
     const container = document.getElementById("widgetContainer");
 

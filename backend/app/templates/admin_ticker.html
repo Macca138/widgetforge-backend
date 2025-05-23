@@ -105,15 +105,6 @@
 <script>
 const apiKey = new URLSearchParams(window.location.search).get("key");
 
-fetch("/api/save-traders", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-API-KEY": apiKey
-  },
-  body: JSON.stringify({ traders })
-});
-
 document.getElementById('configForm').onsubmit = function(e) {
   e.preventDefault();
 
