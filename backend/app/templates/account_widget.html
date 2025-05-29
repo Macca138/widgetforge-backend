@@ -42,54 +42,91 @@
   <script>
     const fields = {{ fields | tojson }};
     let traderList = [];
-try {
-  traderList = JSON.parse({{ traders | tojson | safe }});
-} catch (e) {
-  console.warn("⚠️ No trader list found or malformed:", e);
-}
-
+    try {
+      traderList = JSON.parse({{ traders | tojson | safe }});
+    } catch (e) {
+      console.warn("⚠️ No trader list found or malformed:", e);
+    }
 
     const container = document.getElementById("widgetContainer");
 
     function fetchAndRender() {
       container.innerHTML = "";
 
+      if (traderList.length === 0) {
+        container.innerHTML = '<div class="trader-box"><div>No traders configured</div></div>';
+        return;
+      }
+
       traderList.forEach(trader => {
         const login = trader.login;
         const label = trader.label;
 
-        fetch(`/static/data/trader_${login}.json`)
+        // Use the new API endpoint instead of static files
+        fetch(`/api/mt5/account-data/${login}`)
           .then(res => res.ok ? res.json() : null)
           .then(data => {
             const box = document.createElement("div");
             box.className = "trader-box";
 
             if (!data) {
-              box.innerHTML = `<div><span class="label">${label}:</span> No data found</div>`;
+              box.innerHTML = `
+                <div><span class="label">${label}:</span> 
+                  <span style="color: #ff6666;">No data available</span>
+                </div>
+                <div style="font-size: 0.8em; color: #999;">
+                  Login: ${login}
+                </div>`;
               container.appendChild(box);
               return;
             }
 
-            if (fields.includes("name")) box.innerHTML += `<div><span class="label">Name:</span> ${data.label}</div>`;
-            if (fields.includes("balance")) box.innerHTML += `<div><span class="label">Balance:</span> $${data.balance.toFixed(2)}</div>`;
-            if (fields.includes("equity")) box.innerHTML += `<div><span class="label">Equity:</span> $${data.equity.toFixed(2)}</div>`;
-            if (fields.includes("asset")) box.innerHTML += `<div><span class="label">Asset:</span> ${data.symbol || "-"}</div>`;
-            if (fields.includes("direction")) box.innerHTML += `<div><span class="label">Direction:</span> ${data.direction || "-"}</div>`;
-            if (fields.includes("pl")) box.innerHTML += `<div><span class="label">P/L:</span> ${data.pl !== undefined ? data.pl.toFixed(2) : "-"}</div>`;
-            if (fields.includes("entry")) box.innerHTML += `<div><span class="label">Entry:</span> ${data.entry || "-"}</div>`;
-            if (fields.includes("sl")) box.innerHTML += `<div><span class="label">SL:</span> ${data.sl || "-"}</div>`;
-            if (fields.includes("tp")) box.innerHTML += `<div><span class="label">TP:</span> ${data.tp || "-"}</div>`;
+            let content = '';
+            if (fields.includes("name")) content += `<div><span class="label">Name:</span> ${data.label}</div>`;
+            if (fields.includes("balance")) content += `<div><span class="label">Balance:</span> $${data.balance ? data.balance.toFixed(2) : '0.00'}</div>`;
+            if (fields.includes("equity")) content += `<div><span class="label">Equity:</span> $${data.equity ? data.equity.toFixed(2) : '0.00'}</div>`;
+            if (fields.includes("margin")) content += `<div><span class="label">Margin:</span> $${data.margin ? data.margin.toFixed(2) : '0.00'}</div>`;
+            if (fields.includes("free_margin")) content += `<div><span class="label">Free Margin:</span> $${data.free_margin ? data.free_margin.toFixed(2) : '0.00'}</div>`;
+            if (fields.includes("profit")) content += `<div><span class="label">Total P/L:</span> <span style="color: ${(data.profit || 0) >= 0 ? '#00ff88' : '#ff4444'}">${data.profit ? data.profit.toFixed(2) : '0.00'}</span></div>`;
+            
+            // Show trade information if available
+            if (data.trades && data.trades.length > 0) {
+              const trade = data.trades[0]; // Show first trade
+              if (fields.includes("asset")) content += `<div><span class="label">Asset:</span> ${trade.symbol || "-"}</div>`;
+              if (fields.includes("direction")) content += `<div><span class="label">Direction:</span> ${trade.type || "-"}</div>`;
+              if (fields.includes("pl")) content += `<div><span class="label">Position P/L:</span> <span style="color: ${(trade.profit || 0) >= 0 ? '#00ff88' : '#ff4444'}">${trade.profit ? trade.profit.toFixed(2) : '0.00'}</span></div>`;
+              if (fields.includes("entry")) content += `<div><span class="label">Entry:</span> ${trade.entry_price || "-"}</div>`;
+              if (fields.includes("current")) content += `<div><span class="label">Current:</span> ${trade.current_price || "-"}</div>`;
+              if (fields.includes("sl")) content += `<div><span class="label">SL:</span> ${trade.sl || "-"}</div>`;
+              if (fields.includes("tp")) content += `<div><span class="label">TP:</span> ${trade.tp || "-"}</div>`;
+            } else {
+              if (fields.includes("asset")) content += `<div><span class="label">Asset:</span> No positions</div>`;
+            }
 
+            // Show timestamp
+            if (data.timestamp) {
+              const lastUpdate = new Date(data.timestamp * 1000).toLocaleTimeString();
+              content += `<div style="font-size: 0.8em; color: #999; margin-top: 0.5em;">Updated: ${lastUpdate}</div>`;
+            }
+
+            box.innerHTML = content;
             container.appendChild(box);
           })
           .catch(err => {
             console.error("Error loading data for trader:", login, err);
+            const box = document.createElement("div");
+            box.className = "trader-box";
+            box.innerHTML = `
+              <div><span class="label">${label}:</span> 
+                <span style="color: #ff6666;">Connection error</span>
+              </div>`;
+            container.appendChild(box);
           });
       });
     }
 
     fetchAndRender();
-    setInterval(fetchAndRender, 2000); // Update every 2 seconds
+    setInterval(fetchAndRender, 5000); // Update every 5 seconds
   </script>
 </body>
 </html>

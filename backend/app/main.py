@@ -3,7 +3,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from app.services.cache_service import get_price
+from app.services.cache_service import get_price, get_account
+from app.routes.mt5_routes import router as mt5_router
+from app.routes.mt5_terminal_routes import router as mt5_terminal_router
 from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -31,6 +33,44 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
 app = FastAPI()
 app.add_middleware(AdminAuthMiddleware)
+
+# Include MT5 routes
+app.include_router(mt5_router)
+app.include_router(mt5_terminal_router)
+
+@app.on_event("startup")
+async def startup_event():
+    """Load existing MT5 configuration on startup"""
+    from app.services.mt5_manager import mt5_manager
+    
+    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".cache"))
+    config_file = os.path.join(cache_dir, "traders_config.json")
+    
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r") as f:
+                config = json.load(f)
+            
+            traders = config.get("traders", [])
+            if traders:
+                # Restore terminal configurations
+                for trader in traders:
+                    password = base64.b64decode(trader["password"]).decode()
+                    mt5_manager.add_terminal(
+                        login=trader["login"],
+                        password=password,
+                        server=trader["server"],
+                        label=trader["label"],
+                        terminal_path=trader["terminal_path"]
+                    )
+                
+                # Start polling
+                mt5_manager.start_polling(traders, interval=5)
+                print(f"🚀 Restored {len(traders)} MT5 terminals and started polling")
+        except Exception as e:
+            print(f"⚠️ Failed to restore MT5 configuration: {e}")
+    else:
+        print("ℹ️ No existing MT5 configuration found")
 
 static_path = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -163,6 +203,24 @@ async def admin_account_widget(request: Request):
         "request": request
     })
 
+@app.get("/admin/mt5-manager", response_class=HTMLResponse)
+async def admin_mt5_manager(request: Request):
+    return templates.TemplateResponse("admin_mt5_manager.html", {
+        "request": request
+    })
+
+@app.get("/admin/mt5-terminal-manager", response_class=HTMLResponse)
+async def admin_mt5_terminal_manager(request: Request):
+    return templates.TemplateResponse("admin_mt5_terminal_manager.html", {
+        "request": request
+    })
+
+@app.get("/admin/enhanced-account-builder", response_class=HTMLResponse)
+async def admin_enhanced_account_builder(request: Request):
+    return templates.TemplateResponse("admin_enhanced_account_builder.html", {
+        "request": request
+    })
+
 @app.get("/widgets/account-widget", response_class=HTMLResponse)
 async def account_widget(request: Request):
     params = request.query_params
@@ -176,6 +234,35 @@ async def account_widget(request: Request):
         "font_color": params.get("fontColor", "#ffffff"),
         "bg_color": params.get("bgColor", "#000000"),
         "traders": params.get("traders", "[]")
+    })
+
+@app.get("/widgets/enhanced-account-widget", response_class=HTMLResponse)
+async def enhanced_account_widget(request: Request):
+    params = request.query_params
+    
+    # Parse terminal IDs
+    terminal_ids_str = params.get("terminal_ids", "")
+    terminal_ids = [int(tid.strip()) for tid in terminal_ids_str.split(",") if tid.strip().isdigit()]
+
+    return templates.TemplateResponse("enhanced_account_widget.html", {
+        "request": request,
+        "layout": params.get("layout", "grid"),
+        "fields": params.get("fields", "balance,equity,profit").split(","),
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("fontSize", "16"),
+        "font_color": params.get("fontColor", "#ffffff"),
+        "bg_color": params.get("bgColor", "#000000"),
+        "terminal_ids": terminal_ids,
+        "sort_by": params.get("sort_by", "profit"),
+        "max_traders": int(params.get("max_traders", "10")),
+        "scroll_speed": int(params.get("scroll_speed", "30")),
+        "trader_name_color": params.get("trader_name_color", "#00ff88"),
+        "balance_color": params.get("balance_color", "#ffffff"),
+        "equity_color": params.get("equity_color", "#ffffff"),
+        "profit_positive_color": params.get("profit_positive_color", "#00ff88"),
+        "profit_negative_color": params.get("profit_negative_color", "#ff4444"),
+        "profit_neutral_color": params.get("profit_neutral_color", "#cccccc"),
+        "label_color": params.get("label_color", "#cccccc")
     })
 
 @app.post("/api/save-traders")

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enhanced Account Widget Builder</title>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+        
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+        
+        .preview-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 20px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+        }
+        
+        .section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #b0b0b0;
+            margin-bottom: 5px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .color-input {
+            width: 60px;
+            height: 35px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .preview-content {
+            flex: 1;
+            background: #000;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+        }
+        
+        .widget-url {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-top: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .terminal-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .terminal-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        
+        .terminal-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .terminal-name {
+            font-weight: 500;
+        }
+        
+        .terminal-details {
+            font-size: 0.8em;
+            color: #999;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        
+        .status-connected { background-color: #00ff88; }
+        .status-disconnected { background-color: #ff4444; }
+        
+        .layout-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .layout-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .layout-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .layout-option input[type="radio"] {
+            margin: 0;
+        }
+        
+        .refresh-status {
+            color: #00ff88;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <h1>Account Widget Builder</h1>
+            
+            <!-- Terminal Selection -->
+            <div class="section">
+                <h3>📡 Active Terminals <button class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="refreshTerminals()">🔄</button><span class="refresh-status" id="refreshStatus"></span></h3>
+                <div class="terminal-selector" id="terminalSelector">
+                    Loading terminals...
+                </div>
+            </div>
+            
+            <!-- Layout Options -->
+            <div class="section">
+                <h3>📐 Layout</h3>
+                <div class="layout-options">
+                    <label class="layout-option">
+                        <input type="radio" name="layout" value="grid" checked onchange="updatePreview()">
+                        <span>🔲 Grid</span>
+                    </label>
+                    <label class="layout-option">
+                        <input type="radio" name="layout" value="horizontal" onchange="updatePreview()">
+                        <span>↔️ Horizontal</span>
+                    </label>
+                    <label class="layout-option">
+                        <input type="radio" name="layout" value="vertical" onchange="updatePreview()">
+                        <span>↕️ Vertical</span>
+                    </label>
+                    <label class="layout-option">
+                        <input type="radio" name="layout" value="ticker" onchange="updatePreview()">
+                        <span>🎞️ Ticker</span>
+                    </label>
+                    <label class="layout-option">
+                        <input type="radio" name="layout" value="leaderboard" onchange="updatePreview()">
+                        <span>🏆 Leaderboard</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Fields Selection -->
+            <div class="section">
+                <h3>📊 Data Fields</h3>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="field-balance" value="balance" checked onchange="updatePreview()">
+                        <label for="field-balance">Balance</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="field-equity" value="equity" checked onchange="updatePreview()">
+                        <label for="field-equity">Equity</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="field-profit" value="profit" checked onchange="updatePreview()">
+                        <label for="field-profit">P/L</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="field-margin" value="margin" onchange="updatePreview()">
+                        <label for="field-margin">Margin</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="field-trades" value="trades" onchange="updatePreview()">
+                        <label for="field-trades">Trades</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="field-win_rate" value="win_rate" onchange="updatePreview()">
+                        <label for="field-win_rate">Win Rate</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Styling Options -->
+            <div class="section">
+                <h3>🎨 Styling</h3>
+                <div class="form-group">
+                    <label>Font:</label>
+                    <select class="form-control" id="font" onchange="updatePreview()">
+                        <option value="Inter">Inter</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Roboto">Roboto</option>
+                        <option value="Open Sans">Open Sans</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Font Size:</label>
+                    <input type="range" class="form-control" id="fontSize" min="12" max="24" value="16" onchange="updatePreview()">
+                    <span id="fontSizeValue">16px</span>
+                </div>
+                <div class="form-group">
+                    <label>Background Color:</label>
+                    <input type="color" class="color-input" id="bgColor" value="#000000" onchange="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label>Text Color:</label>
+                    <input type="color" class="color-input" id="fontColor" value="#ffffff" onchange="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label>Profit Color (Positive):</label>
+                    <input type="color" class="color-input" id="profitPositiveColor" value="#00ff88" onchange="updatePreview()">
+                </div>
+                <div class="form-group">
+                    <label>Profit Color (Negative):</label>
+                    <input type="color" class="color-input" id="profitNegativeColor" value="#ff4444" onchange="updatePreview()">
+                </div>
+            </div>
+            
+            <!-- Competition Settings -->
+            <div class="section">
+                <h3>🏆 Competition Settings</h3>
+                <div class="form-group">
+                    <label>Sort By:</label>
+                    <select class="form-control" id="sortBy" onchange="updatePreview()">
+                        <option value="profit">Profit/Loss</option>
+                        <option value="balance">Balance</option>
+                        <option value="equity">Equity</option>
+                        <option value="win_rate">Win Rate</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Max Traders:</label>
+                    <input type="number" class="form-control" id="maxTraders" min="1" max="10" value="10" onchange="updatePreview()">
+                </div>
+                <div class="form-group" id="tickerSpeedGroup" style="display: none;">
+                    <label>Ticker Speed (seconds):</label>
+                    <input type="range" class="form-control" id="scrollSpeed" min="10" max="60" value="30" onchange="updatePreview()">
+                    <span id="scrollSpeedValue">30s</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Preview Panel -->
+        <div class="preview-panel">
+            <div class="preview-header">
+                <h1>📺 Live Preview</h1>
+                <button class="btn btn-primary" onclick="copyWidgetUrl()">📋 Copy Widget URL</button>
+            </div>
+            <div class="preview-content">
+                <iframe id="previewFrame" class="preview-iframe" src="about:blank"></iframe>
+            </div>
+            <div class="widget-url" id="widgetUrl">
+                Configure terminals and settings to generate widget URL
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiKey = localStorage.getItem('api_key') || '';
+        let activeTerminals = [];
+        
+        if (!apiKey) {
+            apiKey = prompt('Enter API Key:');
+            if (apiKey) {
+                localStorage.setItem('api_key', apiKey);
+            }
+        }
+        
+        async function apiCall(url, options = {}) {
+            const defaultHeaders = {
+                'Content-Type': 'application/json',
+                'X-API-KEY': apiKey
+            };
+            
+            const response = await fetch(url, {
+                ...options,
+                headers: { ...defaultHeaders, ...options.headers }
+            });
+            
+            if (!response.ok) {
+                throw new Error('API call failed');
+            }
+            
+            return await response.json();
+        }
+        
+        async function refreshTerminals() {
+            const statusEl = document.getElementById('refreshStatus');
+            statusEl.textContent = 'Refreshing...';
+            
+            try {
+                const data = await apiCall('/api/mt5/active-terminals');
+                activeTerminals = data.active_terminals;
+                renderTerminalSelector();
+                statusEl.textContent = '✅ Updated';
+                setTimeout(() => statusEl.textContent = '', 2000);
+            } catch (error) {
+                console.error('Failed to refresh terminals:', error);
+                statusEl.textContent = '❌ Failed';
+            }
+        }
+        
+        function renderTerminalSelector() {
+            const container = document.getElementById('terminalSelector');
+            
+            if (activeTerminals.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #999;">No active terminals found. Go to Terminal Manager to set up connections.</div>';
+                return;
+            }
+            
+            container.innerHTML = activeTerminals.map(terminal => `
+                <div class="terminal-item">
+                    <div class="terminal-info">
+                        <div class="terminal-name">${terminal.label}</div>
+                        <div class="terminal-details">Terminal ${terminal.terminal_id} • Login: ${terminal.login}</div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <input type="checkbox" class="terminal-checkbox" value="${terminal.terminal_id}" onchange="updatePreview()">
+                        <div class="status-indicator status-connected"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getSelectedTerminals() {
+            const checkboxes = document.querySelectorAll('.terminal-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function getSelectedFields() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="field-"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function updatePreview() {
+            const selectedTerminals = getSelectedTerminals();
+            const selectedFields = getSelectedFields();
+            const layout = document.querySelector('input[name="layout"]:checked').value;
+            
+            if (selectedTerminals.length === 0) {
+                document.getElementById('widgetUrl').textContent = 'Please select at least one terminal';
+                document.getElementById('previewFrame').src = 'about:blank';
+                return;
+            }
+            
+            // Update font size display
+            const fontSize = document.getElementById('fontSize').value;
+            document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+            
+            // Update scroll speed display
+            const scrollSpeed = document.getElementById('scrollSpeed').value;
+            document.getElementById('scrollSpeedValue').textContent = scrollSpeed + 's';
+            
+            // Show/hide ticker speed based on layout
+            const tickerSpeedGroup = document.getElementById('tickerSpeedGroup');
+            tickerSpeedGroup.style.display = layout === 'ticker' ? 'block' : 'none';
+            
+            // Build widget URL
+            const params = new URLSearchParams({
+                terminal_ids: selectedTerminals.join(','),
+                layout: layout,
+                fields: selectedFields.join(','),
+                font: document.getElementById('font').value,
+                fontSize: fontSize,
+                bgColor: document.getElementById('bgColor').value,
+                fontColor: document.getElementById('fontColor').value,
+                profit_positive_color: document.getElementById('profitPositiveColor').value,
+                profit_negative_color: document.getElementById('profitNegativeColor').value,
+                sort_by: document.getElementById('sortBy').value,
+                max_traders: document.getElementById('maxTraders').value,
+                scroll_speed: scrollSpeed
+            });
+            
+            const widgetUrl = `/widgets/enhanced-account-widget?${params.toString()}`;
+            document.getElementById('widgetUrl').textContent = widgetUrl;
+            document.getElementById('previewFrame').src = widgetUrl;
+        }
+        
+        function copyWidgetUrl() {
+            const url = document.getElementById('widgetUrl').textContent;
+            if (url && url !== 'Please select at least one terminal') {
+                navigator.clipboard.writeText(window.location.origin + url).then(() => {
+                    alert('Widget URL copied to clipboard!');
+                });
+            }
+        }
+        
+        // Initialize
+        refreshTerminals();
+        
+        // Auto-refresh terminals every 30 seconds
+        setInterval(refreshTerminals, 30000);
+    </script>
+</body>
+</html>

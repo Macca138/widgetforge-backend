@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Enhanced Account Widget</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: {{ bg_color }};
+      color: {{ font_color }};
+      font-family: '{{ font }}', 'Inter', sans-serif;
+      font-size: {{ font_size }}px;
+      overflow: hidden;
+    }
+
+    .container {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      {% if layout == "vertical" %}
+      flex-direction: column;
+      {% elif layout == "horizontal" %}
+      flex-direction: row;
+      {% elif layout == "grid" %}
+      flex-wrap: wrap;
+      {% elif layout == "ticker" %}
+      align-items: center;
+      {% endif %}
+      {% if layout == "ticker" %}
+      overflow: hidden;
+      {% else %}
+      gap: 1rem;
+      padding: 1rem;
+      {% endif %}
+    }
+
+    .trader-card {
+      {% if layout == "ticker" %}
+      display: inline-block;
+      white-space: nowrap;
+      margin-right: 2rem;
+      {% else %}
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      {% if layout == "grid" %}
+      flex: 1 1 calc(33.333% - 1rem);
+      min-width: 250px;
+      {% elif layout == "horizontal" %}
+      flex: 1;
+      min-width: 200px;
+      {% else %}
+      width: 100%;
+      {% endif %}
+      {% endif %}
+    }
+
+    {% if layout == "ticker" %}
+    .ticker-container {
+      display: inline-block;
+      animation: scroll {{ scroll_speed | default(30) }}s linear infinite;
+      white-space: nowrap;
+    }
+
+    @keyframes scroll {
+      0%   { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    {% endif %}
+
+    .trader-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+      {% if layout == "ticker" %}
+      display: inline;
+      margin-right: 1rem;
+      {% endif %}
+    }
+
+    .trader-name {
+      font-weight: 600;
+      font-size: 1.1em;
+      color: {{ trader_name_color | default('#00ff88') }};
+    }
+
+    .connection-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      {% if layout == "ticker" %}
+      display: inline-block;
+      margin-left: 0.5rem;
+      {% endif %}
+    }
+
+    .status-connected { background-color: #00ff88; }
+    .status-disconnected { background-color: #ff4444; }
+    .status-connecting { 
+      background-color: #ffaa00; 
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+
+    .trader-info {
+      {% if layout == "ticker" %}
+      display: inline;
+      {% else %}
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      {% endif %}
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      {% if layout == "ticker" %}
+      display: inline;
+      margin-right: 1rem;
+      {% endif %}
+    }
+
+    .info-label {
+      font-weight: 500;
+      color: {{ label_color | default('#cccccc') }};
+      {% if layout == "ticker" %}
+      margin-right: 0.3rem;
+      {% endif %}
+    }
+
+    .info-value {
+      font-weight: 600;
+      {% if layout == "ticker" %}
+      margin-right: 0.5rem;
+      {% endif %}
+    }
+
+    .balance { color: {{ balance_color | default('#ffffff') }}; }
+    .equity { color: {{ equity_color | default('#ffffff') }}; }
+    
+    .profit-positive { color: {{ profit_positive_color | default('#00ff88') }}; }
+    .profit-negative { color: {{ profit_negative_color | default('#ff4444') }}; }
+    .profit-neutral { color: {{ profit_neutral_color | default('#cccccc') }}; }
+
+    .trades-info {
+      {% if layout == "ticker" %}
+      display: inline;
+      {% else %}
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      {% endif %}
+    }
+
+    .trade-item {
+      font-size: 0.9em;
+      {% if layout == "ticker" %}
+      display: inline;
+      margin-right: 0.8rem;
+      {% else %}
+      margin-bottom: 0.3rem;
+      {% endif %}
+    }
+
+    .no-data {
+      color: #ff6666;
+      font-style: italic;
+      {% if layout == "ticker" %}
+      display: inline;
+      margin-right: 1rem;
+      {% endif %}
+    }
+
+    .last-update {
+      font-size: 0.7em;
+      color: #999999;
+      {% if layout != "ticker" %}
+      margin-top: 0.5rem;
+      {% endif %}
+    }
+
+    .leaderboard-rank {
+      background: linear-gradient(135deg, #00ff88, #00cc6a);
+      color: #000;
+      padding: 0.2rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+
+    {% if layout == "leaderboard" %}
+    .container {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .trader-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.8rem 1rem;
+    }
+    
+    .rank-number {
+      font-size: 1.5em;
+      font-weight: 700;
+      color: #00ff88;
+      min-width: 40px;
+      text-align: center;
+    }
+    
+    .trader-summary {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .trader-main-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    
+    .trader-metrics {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    {% endif %}
+  </style>
+</head>
+<body>
+  <div class="container">
+    {% if layout == "ticker" %}
+    <div class="ticker-container" id="tickerContainer">
+      Loading...
+    </div>
+    {% else %}
+    <div id="tradersContainer">
+      Loading...
+    </div>
+    {% endif %}
+  </div>
+
+  <script>
+    const layout = "{{ layout }}";
+    const fields = {{ fields | tojson }};
+    const terminalIds = {{ terminal_ids | tojson }};
+    const sortBy = "{{ sort_by | default('profit') }}";
+    const maxTraders = {{ max_traders | default(10) }};
+    
+    let lastData = {};
+
+    async function fetchTradersData() {
+      if (!terminalIds || terminalIds.length === 0) {
+        updateDisplay([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/mt5/multi-terminal-data?terminal_ids=${terminalIds.join(',')}`);
+        const data = await response.json();
+        
+        const traders = [];
+        for (const [terminalId, traderData] of Object.entries(data.terminals)) {
+          if (traderData) {
+            traders.push({
+              ...traderData,
+              terminal_id: parseInt(terminalId)
+            });
+          }
+        }
+        
+        // Sort traders if needed
+        if (layout === 'leaderboard' && sortBy) {
+          traders.sort((a, b) => {
+            if (sortBy === 'profit') return (b.profit || 0) - (a.profit || 0);
+            if (sortBy === 'balance') return (b.balance || 0) - (a.balance || 0);
+            if (sortBy === 'equity') return (b.equity || 0) - (a.equity || 0);
+            if (sortBy === 'win_rate') return (b.daily_stats?.win_rate || 0) - (a.daily_stats?.win_rate || 0);
+            return 0;
+          });
+        }
+        
+        // Limit number of traders if needed
+        const limitedTraders = traders.slice(0, maxTraders);
+        
+        updateDisplay(limitedTraders);
+        lastData = data;
+        
+      } catch (error) {
+        console.error('Failed to fetch traders data:', error);
+        updateDisplay([]);
+      }
+    }
+
+    function updateDisplay(traders) {
+      if (layout === 'ticker') {
+        updateTickerDisplay(traders);
+      } else if (layout === 'leaderboard') {
+        updateLeaderboardDisplay(traders);
+      } else {
+        updateGridDisplay(traders);
+      }
+    }
+
+    function updateTickerDisplay(traders) {
+      const container = document.getElementById('tickerContainer');
+      
+      if (traders.length === 0) {
+        container.innerHTML = '<span class="no-data">No active traders</span>';
+        return;
+      }
+
+      const tickerItems = traders.map(trader => {
+        const profit = trader.profit || 0;
+        const profitClass = profit > 0 ? 'profit-positive' : profit < 0 ? 'profit-negative' : 'profit-neutral';
+        
+        let content = `<span class="trader-card">`;
+        content += `<span class="trader-name">${trader.label}</span>`;
+        
+        if (fields.includes('balance')) {
+          content += `<span class="info-label">Bal:</span><span class="info-value balance">$${formatNumber(trader.balance)}</span>`;
+        }
+        if (fields.includes('equity')) {
+          content += `<span class="info-label">Eq:</span><span class="info-value equity">$${formatNumber(trader.equity)}</span>`;
+        }
+        if (fields.includes('profit')) {
+          content += `<span class="info-label">P/L:</span><span class="info-value ${profitClass}">$${formatNumber(profit)}</span>`;
+        }
+        if (fields.includes('trades') && trader.trade_count > 0) {
+          content += `<span class="info-label">Trades:</span><span class="info-value">${trader.trade_count}</span>`;
+        }
+        
+        content += `</span>`;
+        return content;
+      }).join(' ');
+
+      container.innerHTML = tickerItems;
+    }
+
+    function updateLeaderboardDisplay(traders) {
+      const container = document.getElementById('tradersContainer');
+      
+      if (traders.length === 0) {
+        container.innerHTML = '<div class="no-data">No active traders</div>';
+        return;
+      }
+
+      const leaderboardItems = traders.map((trader, index) => {
+        const profit = trader.profit || 0;
+        const profitClass = profit > 0 ? 'profit-positive' : profit < 0 ? 'profit-negative' : 'profit-neutral';
+        const rank = index + 1;
+        
+        return `
+          <div class="trader-card">
+            <div class="rank-number">${rank}</div>
+            <div class="trader-summary">
+              <div class="trader-main-info">
+                <div class="trader-name">${trader.label}</div>
+                <div class="last-update">Terminal ${trader.terminal_id} • ${getLastUpdateText(trader.timestamp)}</div>
+              </div>
+              <div class="trader-metrics">
+                ${fields.includes('balance') ? `<div><span class="info-label">Balance:</span> <span class="info-value balance">$${formatNumber(trader.balance)}</span></div>` : ''}
+                ${fields.includes('equity') ? `<div><span class="info-label">Equity:</span> <span class="info-value equity">$${formatNumber(trader.equity)}</span></div>` : ''}
+                ${fields.includes('profit') ? `<div><span class="info-label">P/L:</span> <span class="info-value ${profitClass}">$${formatNumber(profit)}</span></div>` : ''}
+                ${fields.includes('win_rate') && trader.daily_stats ? `<div><span class="info-label">Win Rate:</span> <span class="info-value">${trader.daily_stats.win_rate}%</span></div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = leaderboardItems;
+    }
+
+    function updateGridDisplay(traders) {
+      const container = document.getElementById('tradersContainer');
+      
+      if (traders.length === 0) {
+        container.innerHTML = '<div class="no-data">No active traders</div>';
+        return;
+      }
+
+      const gridItems = traders.map(trader => {
+        const profit = trader.profit || 0;
+        const profitClass = profit > 0 ? 'profit-positive' : profit < 0 ? 'profit-negative' : 'profit-neutral';
+        
+        let content = `
+          <div class="trader-card">
+            <div class="trader-header">
+              <div class="trader-name">${trader.label}</div>
+              <div class="connection-status status-connected"></div>
+            </div>
+            <div class="trader-info">
+        `;
+        
+        if (fields.includes('balance')) {
+          content += `<div class="info-row"><span class="info-label">Balance:</span><span class="info-value balance">$${formatNumber(trader.balance)}</span></div>`;
+        }
+        if (fields.includes('equity')) {
+          content += `<div class="info-row"><span class="info-label">Equity:</span><span class="info-value equity">$${formatNumber(trader.equity)}</span></div>`;
+        }
+        if (fields.includes('profit')) {
+          content += `<div class="info-row"><span class="info-label">P/L:</span><span class="info-value ${profitClass}">$${formatNumber(profit)}</span></div>`;
+        }
+        if (fields.includes('margin')) {
+          content += `<div class="info-row"><span class="info-label">Margin:</span><span class="info-value">$${formatNumber(trader.margin)}</span></div>`;
+        }
+        if (fields.includes('margin_level')) {
+          content += `<div class="info-row"><span class="info-label">Margin Level:</span><span class="info-value">${formatNumber(trader.margin_level)}%</span></div>`;
+        }
+        
+        if (fields.includes('trades') && trader.open_trades && trader.open_trades.length > 0) {
+          content += `<div class="trades-info">`;
+          content += `<div class="info-label">Open Positions (${trader.open_trades.length}):</div>`;
+          
+          trader.open_trades.slice(0, 3).forEach(trade => {
+            const tradeProfitClass = trade.profit > 0 ? 'profit-positive' : trade.profit < 0 ? 'profit-negative' : 'profit-neutral';
+            content += `<div class="trade-item">${trade.symbol} ${trade.type} <span class="${tradeProfitClass}">$${formatNumber(trade.profit)}</span></div>`;
+          });
+          
+          if (trader.open_trades.length > 3) {
+            content += `<div class="trade-item">... and ${trader.open_trades.length - 3} more</div>`;
+          }
+          content += `</div>`;
+        }
+        
+        content += `
+            </div>
+            <div class="last-update">Updated: ${getLastUpdateText(trader.timestamp)}</div>
+          </div>
+        `;
+        
+        return content;
+      }).join('');
+
+      container.innerHTML = gridItems;
+    }
+
+    function formatNumber(num) {
+      if (num == null) return '0.00';
+      return parseFloat(num).toFixed(2);
+    }
+
+    function getLastUpdateText(timestamp) {
+      if (!timestamp) return 'Never';
+      const now = Date.now() / 1000;
+      const diff = now - timestamp;
+      
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return new Date(timestamp * 1000).toLocaleDateString();
+    }
+
+    // Initial load
+    fetchTradersData();
+
+    // Update every 5 seconds
+    setInterval(fetchTradersData, 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MT5 Terminal Manager</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .section h3 {
+            margin-top: 0;
+            color: #00ff88;
+        }
+        
+        .trader-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        input, select {
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #444;
+            color: white;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .btn-secondary {
+            background: #666;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+        
+        .btn-test {
+            background: #007acc;
+            color: white;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .terminal-status {
+            background: #333;
+            border-radius: 5px;
+            padding: 15px;
+            border-left: 4px solid #666;
+        }
+        
+        .terminal-status.connected {
+            border-left-color: #00ff88;
+        }
+        
+        .terminal-status.error {
+            border-left-color: #ff4444;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background: #00ff88;
+        }
+        
+        .status-error {
+            background: #ff4444;
+        }
+        
+        .status-pending {
+            background: #ffaa00;
+        }
+        
+        .error-message {
+            color: #ff6666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .success-message {
+            color: #00ff88;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            display: none;
+            color: #ffaa00;
+        }
+        
+        .trader-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MT5 Terminal Manager</h1>
+            <button class="btn btn-secondary" onclick="refreshStatus()">🔄 Refresh Status</button>
+        </div>
+        
+        <div class="section">
+            <h3>📊 Terminal Status</h3>
+            <div id="statusGrid" class="status-grid">
+                <div class="terminal-status">
+                    <div>Loading terminal status...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>⚙️ Configure Traders</h3>
+            <div id="tradersContainer">
+                <!-- Trader forms will be added here -->
+            </div>
+            <div style="margin: 20px 0;">
+                <button class="btn btn-secondary" onclick="addTrader()">+ Add Trader</button>
+                <button class="btn btn-primary" onclick="saveConfiguration()" style="margin-left: 10px;">💾 Save Configuration</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>🧪 Test Connection</h3>
+            <div class="trader-form">
+                <div class="form-group">
+                    <label>Login:</label>
+                    <input type="text" id="testLogin" placeholder="MT5 Login">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="testPassword" placeholder="MT5 Password">
+                </div>
+                <div class="form-group">
+                    <label>Server:</label>
+                    <input type="text" id="testServer" placeholder="Broker Server">
+                </div>
+                <div class="form-group">
+                    <label></label>
+                    <button class="btn btn-test" onclick="testConnection()">🔌 Test Connection</button>
+                </div>
+            </div>
+            <div id="testResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let traderCount = 0;
+        
+        function addTrader() {
+            traderCount++;
+            const container = document.getElementById('tradersContainer');
+            const traderDiv = document.createElement('div');
+            traderDiv.innerHTML = `
+                <div class="trader-form" id="trader${traderCount}">
+                    <div class="form-group">
+                        <label>Label:</label>
+                        <input type="text" name="label" placeholder="Trader Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Login:</label>
+                        <input type="text" name="login" placeholder="MT5 Login">
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" name="password" placeholder="MT5 Password">
+                    </div>
+                    <div class="form-group">
+                        <label>Server:</label>
+                        <input type="text" name="server" placeholder="Broker Server">
+                    </div>
+                    <div class="form-group">
+                        <label></label>
+                        <button class="btn btn-danger" onclick="removeTrader(${traderCount})">🗑️ Remove</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(traderDiv);
+        }
+        
+        function removeTrader(id) {
+            const element = document.getElementById(`trader${id}`);
+            if (element) {
+                element.parentElement.remove();
+            }
+        }
+        
+        async function testConnection() {
+            const login = document.getElementById('testLogin').value;
+            const password = document.getElementById('testPassword').value;
+            const server = document.getElementById('testServer').value;
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!login || !password || !server) {
+                resultDiv.innerHTML = '<div class="error-message">Please fill all fields</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading" style="display: block;">⏳ Testing connection...</div>';
+            
+            try {
+                const response = await fetch('/api/mt5/test-connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-KEY': localStorage.getItem('api_key') || ''
+                    },
+                    body: JSON.stringify({
+                        login: login,
+                        password: password,
+                        server: server,
+                        terminal_path: ''
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success-message">✅ ${data.message}<br>Terminal: ${data.terminal_path}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error-message">❌ ${data.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error-message">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+        
+        async function saveConfiguration() {
+            const forms = document.querySelectorAll('.trader-form');
+            const traders = [];
+            
+            forms.forEach(form => {
+                const inputs = form.querySelectorAll('input');
+                if (inputs.length === 4) { // Ensure it's a trader form, not test form
+                    const trader = {};
+                    inputs.forEach(input => {
+                        if (input.name) {
+                            trader[input.name] = input.value;
+                        }
+                    });
+                    
+                    if (trader.label && trader.login && trader.password && trader.server) {
+                        traders.push(trader);
+                    }
+                }
+            });
+            
+            if (traders.length === 0) {
+                alert('Please add at least one trader');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/mt5/configure-traders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-KEY': localStorage.getItem('api_key') || ''
+                    },
+                    body: JSON.stringify(traders)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    refreshStatus();
+                } else {
+                    alert(`❌ ${data.detail}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function refreshStatus() {
+            const statusGrid = document.getElementById('statusGrid');
+            statusGrid.innerHTML = '<div class="terminal-status"><div>Loading...</div></div>';
+            
+            try {
+                const response = await fetch('/api/mt5/terminal-status', {
+                    headers: {
+                        'X-API-KEY': localStorage.getItem('api_key') || ''
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.terminals.length === 0) {
+                    statusGrid.innerHTML = '<div class="terminal-status"><div>No terminals configured</div></div>';
+                } else {
+                    statusGrid.innerHTML = data.terminals.map(terminal => `
+                        <div class="terminal-status ${terminal.connected ? 'connected' : 'error'}">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${terminal.label}</strong>
+                                <span class="status-indicator ${terminal.connected ? 'status-connected' : 'status-error'}"></span>
+                            </div>
+                            <div>Login: ${terminal.login}</div>
+                            <div>Server: ${terminal.server}</div>
+                            <div>Status: ${terminal.connected ? 'Connected' : 'Disconnected'}</div>
+                            ${terminal.last_update ? `<div>Last Update: ${new Date(terminal.last_update * 1000).toLocaleTimeString()}</div>` : ''}
+                            ${terminal.error ? `<div class="error-message">${terminal.error}</div>` : ''}
+                            <div class="trader-actions">
+                                <button class="btn btn-test" onclick="refreshSingleTrader('${terminal.login}')">🔄 Refresh</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                statusGrid.innerHTML = `<div class="terminal-status error"><div>Error loading status: ${error.message}</div></div>`;
+            }
+        }
+        
+        async function refreshSingleTrader(login) {
+            try {
+                const response = await fetch(`/api/mt5/refresh-data/${login}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-KEY': localStorage.getItem('api_key') || ''
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ Refreshed data for ${login}`);
+                    refreshStatus();
+                } else {
+                    alert(`❌ ${data.detail}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        // Check for API key
+        if (!localStorage.getItem('api_key')) {
+            const key = prompt('Enter API Key:');
+            if (key) {
+                localStorage.setItem('api_key', key);
+            }
+        }
+        
+        // Initialize
+        addTrader(); // Add first trader form
+        refreshStatus(); // Load initial status
+        
+        // Auto-refresh status every 30 seconds
+        setInterval(refreshStatus, 30000);
+    </script>
+</body>
+</html>
