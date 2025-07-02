@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smooth Ticker Widget</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;600;700&family=Lato:wght@300;400;700&family=Montserrat:wght@300;400;500;600;700&family=Oswald:wght@300;400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
+
     * {
       margin: 0;
       padding: 0;
@@ -13,7 +15,7 @@
 
     body {
       background: {{ bg_color }}{{ bg_gradient if bg_gradient else '' }};
-      font-family: 'Roboto Mono', 'Courier New', monospace;
+      font-family: '{{ font }}', 'Roboto Mono', 'Courier New', monospace;
       overflow: hidden;
       height: 100vh;
       display: flex;
@@ -50,30 +52,43 @@
       font-weight: {{ font_weight }};
       color: {{ font_color }};
       flex-shrink: 0;
-      width: {{ (font_size|int * 20)|int }}px;
+      min-width: {{ (font_size|int * 22)|int }}px;
       justify-content: space-between;
       font-variant-numeric: tabular-nums;
+      overflow: hidden;
     }
 
     .symbol {
       color: {{ asset_color }};
       font-weight: 600;
-      width: {{ (font_size|int * 4)|int }}px;
+      min-width: {{ (font_size|int * 4)|int }}px;
+      max-width: {{ (font_size|int * 5)|int }}px;
       text-align: left;
       flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .price {
-      width: {{ (font_size|int * 6)|int }}px;
+      min-width: {{ (font_size|int * 6)|int }}px;
+      max-width: {{ (font_size|int * 7)|int }}px;
       text-align: right;
       flex-shrink: 0;
       font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .change {
-      width: {{ (font_size|int * 5)|int }}px;
+      min-width: {{ (font_size|int * 4)|int }}px;
+      max-width: {{ (font_size|int * 5)|int }}px;
       text-align: center;
       flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .change.up { color: {{ up_color }}; }
@@ -84,9 +99,13 @@
       color: {{ spread_color }};
       opacity: 0.8;
       font-size: {{ (font_size|int * 0.9)|int }}px;
-      width: {{ (font_size|int * 3)|int }}px;
+      min-width: {{ (font_size|int * 2.5)|int }}px;
+      max-width: {{ (font_size|int * 3.5)|int }}px;
       text-align: right;
       flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       {% if show_spread != 'true' %}display: none;{% endif %}
     }
 
