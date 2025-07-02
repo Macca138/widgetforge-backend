@@ -64,6 +64,9 @@
       {% if show_logo == 'true' %}
       padding-left: 100px; /* Reserve space for logo */
       {% endif %}
+      /* Smooth container for better performance */
+      will-change: auto;
+      contain: layout style paint;
     }
 
     .mode-scroll #ticker {
@@ -74,6 +77,12 @@
       animation-fill-mode: both;
       line-height: 1;
       vertical-align: middle;
+      /* Hardware acceleration for smooth animation */
+      will-change: transform;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     /* Logo mask - creates fade effect before logo */
@@ -94,8 +103,8 @@
     }
 
     @keyframes scroll {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+      0%   { transform: translate3d(0, 0, 0); }
+      100% { transform: translate3d(-50%, 0, 0); }
     }
 
     /* Static Mode */
@@ -166,6 +175,9 @@
       flex-shrink: 0;
       padding: {{ (font_size|int * 0.2) }}px {{ (font_size|int * 0.4) }}px;
       white-space: nowrap;
+      /* Prevent layout shifts */
+      contain: layout style;
+      transform: translateZ(0);
     }
 
     .asset-name {
