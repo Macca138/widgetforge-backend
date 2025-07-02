@@ -61,6 +61,9 @@
       white-space: nowrap;
       overflow: hidden;
       position: relative;
+      {% if show_logo == 'true' %}
+      padding-left: 100px; /* Reserve space for logo */
+      {% endif %}
     }
 
     .mode-scroll #ticker {
@@ -69,6 +72,8 @@
       white-space: nowrap;
       animation-delay: 0s;
       animation-fill-mode: both;
+      line-height: 1;
+      vertical-align: middle;
     }
 
     /* Logo mask - creates fade effect before logo */
@@ -76,12 +81,12 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 80px;
+      width: 100px;
       height: 100%;
       {% if bg_color == 'transparent' %}
-      background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
+      background: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.9) 80%, rgba(0,0,0,0.9) 100%);
       {% else %}
-      background: linear-gradient(to right, {{ bg_color }} 60%, transparent 100%);
+      background: linear-gradient(to right, transparent 0%, {{ bg_color }} 80%, {{ bg_color }} 100%);
       {% endif %}
       z-index: 99;
       pointer-events: none;
@@ -89,7 +94,7 @@
     }
 
     @keyframes scroll {
-      0%   { transform: translateX({% if show_logo == 'true' %}80px{% else %}100%{% endif %}); }
+      0%   { transform: translateX(100%); }
       100% { transform: translateX(-100%); }
     }
 
@@ -211,20 +216,19 @@
     /* Logo */
     .logo {
       height: {{ logo_height }}px;
-      margin: {{ logo_margin }};
       display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
       position: absolute;
-      left: 10px;
+      left: 15px;
       top: 50%;
       transform: translateY(-50%);
       z-index: 100;
       {% if bg_color != 'transparent' %}
       background: {{ bg_color }};
-      padding: 0 10px;
-      border-radius: 4px;
+      padding: 8px 12px;
+      border-radius: 6px;
       {% else %}
       background: rgba(0, 0, 0, 0.8);
-      padding: 5px 10px;
+      padding: 8px 12px;
       border-radius: 6px;
       {% endif %}
     }
@@ -293,7 +297,7 @@
           </span>
         {% endfor %}
       {% endset %}
-      {{ placeholder_content }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ placeholder_content }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ placeholder_content }}
+      {{ placeholder_content }}<span style="display: inline-block; width: 60px;"></span>{{ placeholder_content }}<span style="display: inline-block; width: 60px;"></span>{{ placeholder_content }}<span style="display: inline-block; width: 60px;"></span>{{ placeholder_content }}
     {% else %}
       Connecting to price feed...
     {% endif %}
@@ -445,10 +449,11 @@
 
         const content = items.join('');
         
-        // For scrolling mode, create multiple copies for truly seamless loop
+        // For scrolling mode, create seamless loop with proper spacing
         if (config.displayMode === 'scroll') {
-          const separator = ' &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ';
-          return content + separator + content + separator + content;
+          const separator = '<span style="display: inline-block; width: 60px;"></span>';
+          // Create enough duplicates to ensure seamless loop
+          return content + separator + content + separator + content + separator + content;
         }
         
         return content;
