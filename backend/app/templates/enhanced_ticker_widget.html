@@ -94,8 +94,8 @@
     }
 
     @keyframes scroll {
-      0%   { transform: translateX(100%); }
-      100% { transform: translateX(-100%); }
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
     }
 
     /* Static Mode */
@@ -287,7 +287,7 @@
     <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
   {% endif %}
 
-  <div id="ticker" class="loading">
+  <div id="ticker">
     {% if display_mode == 'scroll' and symbols %}
       {% set placeholder_content %}
         {% for symbol in symbols.split(',') %}
@@ -297,7 +297,7 @@
           </span>
         {% endfor %}
       {% endset %}
-      {{ placeholder_content }}<span style="display: inline-block; width: 60px;"></span>{{ placeholder_content }}<span style="display: inline-block; width: 60px;"></span>{{ placeholder_content }}<span style="display: inline-block; width: 60px;"></span>{{ placeholder_content }}
+      {{ placeholder_content }}<span style="display: inline-block; width: 40px;"></span>{{ placeholder_content }}
     {% else %}
       Connecting to price feed...
     {% endif %}
@@ -349,19 +349,7 @@
             this.reconnectDelay = config.reconnectDelay;
             this.updateConnectionStatus('connected');
             
-            const ticker = document.getElementById('ticker');
-            ticker.classList.remove('loading', 'error');
-            
-            // Start with placeholder data immediately for scrolling mode
-            if (config.displayMode === 'scroll' && config.symbols.length > 0) {
-              const placeholderData = config.symbols.map(symbol => ({
-                symbol: symbol,
-                price: '-.-----',
-                change_pct: 0,
-                spread: '-.-----'
-              }));
-              this.updatePrices(placeholderData);
-            }
+            // Animation is already running with initial content
           };
 
           this.ws.onmessage = (event) => {
@@ -425,18 +413,24 @@
         // Render based on display mode
         const content = this.renderContent(filteredData);
         
-        if (config.updateAnimation === 'fade') {
-          ticker.style.opacity = '0';
-          setTimeout(() => {
-            ticker.innerHTML = content;
-            ticker.style.opacity = '1';
-          }, 150);
-        } else if (config.updateAnimation === 'slide') {
-          ticker.classList.add('slide-in');
+        // For scrolling mode, update content immediately to maintain smooth animation
+        if (config.displayMode === 'scroll') {
           ticker.innerHTML = content;
-          setTimeout(() => ticker.classList.remove('slide-in'), 500);
         } else {
-          ticker.innerHTML = content;
+          // Use animations for other display modes
+          if (config.updateAnimation === 'fade') {
+            ticker.style.opacity = '0';
+            setTimeout(() => {
+              ticker.innerHTML = content;
+              ticker.style.opacity = '1';
+            }, 150);
+          } else if (config.updateAnimation === 'slide') {
+            ticker.classList.add('slide-in');
+            ticker.innerHTML = content;
+            setTimeout(() => ticker.classList.remove('slide-in'), 500);
+          } else {
+            ticker.innerHTML = content;
+          }
         }
       }
 
@@ -449,11 +443,10 @@
 
         const content = items.join('');
         
-        // For scrolling mode, create seamless loop with proper spacing
+        // For scrolling mode, create exactly 2 copies for seamless loop
         if (config.displayMode === 'scroll') {
-          const separator = '<span style="display: inline-block; width: 60px;"></span>';
-          // Create enough duplicates to ensure seamless loop
-          return content + separator + content + separator + content + separator + content;
+          const separator = '<span style="display: inline-block; width: 40px;"></span>';
+          return content + separator + content;
         }
         
         return content;
