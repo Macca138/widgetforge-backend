@@ -115,15 +115,24 @@
         // Set canvas size to match container
         const resizeCanvas = () => {
           const rect = this.canvas.getBoundingClientRect();
-          this.canvas.width = rect.width * window.devicePixelRatio;
-          this.canvas.height = rect.height * window.devicePixelRatio;
-          this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+          const dpr = window.devicePixelRatio || 1;
+          
+          this.canvas.width = rect.width * dpr;
+          this.canvas.height = rect.height * dpr;
           this.canvas.style.width = rect.width + 'px';
           this.canvas.style.height = rect.height + 'px';
           
-          // Reset text properties after resize
+          // Scale context for high DPI displays
+          this.ctx.scale(dpr, dpr);
+          
+          // Set text rendering properties
           this.ctx.font = `${config.fontWeight} ${config.fontSize}px ${config.font}`;
           this.ctx.textBaseline = 'middle';
+          this.ctx.textAlign = 'left';
+          
+          // Enable anti-aliasing and smooth rendering
+          this.ctx.imageSmoothingEnabled = true;
+          this.ctx.textRenderingOptimization = 'optimizeSpeed';
         };
 
         resizeCanvas();
@@ -160,14 +169,20 @@
 
       updateData(newData) {
         // Update data map with new prices
+        let needsRecalc = false;
         newData.forEach(item => {
           if (config.symbols.length === 0 || config.symbols.includes(item.symbol)) {
+            if (!this.data.has(item.symbol)) {
+              needsRecalc = true;
+            }
             this.data.set(item.symbol, item);
           }
         });
 
-        // Recalculate content width when data changes
-        this.calculateContentWidth();
+        // Only recalculate content width if new symbols were added
+        if (needsRecalc || this.contentWidth === 0) {
+          this.calculateContentWidth();
+        }
       }
 
       calculateContentWidth() {
@@ -217,16 +232,18 @@
         if (!this.isRunning) return;
 
         const now = performance.now();
-        const deltaTime = now - this.lastUpdate;
+        if (this.lastUpdate === 0) this.lastUpdate = now;
+        const deltaTime = Math.min(now - this.lastUpdate, 32); // Cap at ~30fps minimum
         this.lastUpdate = now;
 
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width / window.devicePixelRatio, this.canvas.height / window.devicePixelRatio);
+        // Clear entire canvas efficiently
+        const dpr = window.devicePixelRatio || 1;
+        this.ctx.clearRect(0, 0, this.canvas.width / dpr, this.canvas.height / dpr);
 
         if (this.data.size > 0 && this.contentWidth > 0) {
-          // Calculate scroll speed (pixels per second)
-          const pixelsPerSecond = this.contentWidth / (config.scrollSpeed * 1000);
-          this.offset += pixelsPerSecond * deltaTime;
+          // Use configurable scroll speed - convert to pixels per second
+          const pixelsPerSecond = 100 * (30 / config.scrollSpeed); // Adjust base speed relative to config
+          this.offset += (pixelsPerSecond * deltaTime) / 1000;
 
           // Reset offset for seamless loop
           if (this.offset >= this.contentWidth) {
@@ -240,8 +257,9 @@
       }
 
       drawTicker() {
-        const canvasWidth = this.canvas.width / window.devicePixelRatio;
-        const canvasHeight = this.canvas.height / window.devicePixelRatio;
+        const dpr = window.devicePixelRatio || 1;
+        const canvasWidth = this.canvas.width / dpr;
+        const canvasHeight = this.canvas.height / dpr;
         const startX = config.logoWidth - this.offset;
         const itemSpacing = config.fontSize * 1.5;
         
@@ -253,18 +271,20 @@
           currentX += itemSpacing;
         }
 
-        // Draw second instance for seamless loop (only if first instance has started moving off screen)
-        if (this.offset > 0) {
-          for (const [symbol, data] of this.data) {
-            currentX = this.drawItem(symbol, data, currentX, canvasHeight / 2);
-            currentX += itemSpacing;
-          }
+        // Draw second instance for seamless loop
+        for (const [symbol, data] of this.data) {
+          currentX = this.drawItem(symbol, data, currentX, canvasHeight / 2);
+          currentX += itemSpacing;
         }
       }
 
       drawItem(symbol, data, x, y) {
-        this.ctx.font = `${config.fontWeight} ${config.fontSize}px ${config.font}`;
-        this.ctx.textBaseline = 'middle';
+        // Only set font once if not already set
+        const currentFont = `${config.fontWeight} ${config.fontSize}px ${config.font}`;
+        if (this.ctx.font !== currentFont) {
+          this.ctx.font = currentFont;
+          this.ctx.textBaseline = 'middle';
+        }
 
         const decimals = this.getDecimalPlaces(symbol);
         const formattedPrice = Number(data.price).toLocaleString('en-US', {
@@ -277,16 +297,17 @@
                            data.change_pct < 0 ? config.downColor : config.neutralColor;
 
         let currentX = x;
+        const gap = config.fontSize * 0.4;
 
         // Draw symbol
         this.ctx.fillStyle = config.assetColor;
         this.ctx.fillText(symbol, currentX, y);
-        currentX += this.ctx.measureText(symbol).width + config.fontSize * 0.5;
+        currentX += this.ctx.measureText(symbol).width + gap;
 
         // Draw price
         this.ctx.fillStyle = config.fontColor;
         this.ctx.fillText(formattedPrice, currentX, y);
-        currentX += this.ctx.measureText(formattedPrice).width + config.fontSize * 0.3;
+        currentX += this.ctx.measureText(formattedPrice).width + gap;
 
         // Draw change
         this.ctx.fillStyle = changeColor;
@@ -297,7 +318,7 @@
         // Draw spread if enabled
         if (config.showSpread) {
           this.ctx.fillStyle = config.spreadColor;
-          currentX += config.fontSize * 0.3;
+          currentX += gap;
           this.ctx.fillText(data.spread, currentX, y);
           currentX += this.ctx.measureText(data.spread).width;
         }
