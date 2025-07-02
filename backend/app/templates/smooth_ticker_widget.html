@@ -139,7 +139,7 @@
   <script>
     const config = {
       symbols: "{{ symbols }}".split(",").filter(s => s),
-      showSpread: {{ show_spread == 'true' ? 'true' : 'false' }}
+      showSpread: {% if show_spread == 'true' %}true{% else %}false{% endif %}
     };
 
     class SmoothTicker {
