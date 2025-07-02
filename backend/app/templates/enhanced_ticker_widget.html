@@ -162,17 +162,20 @@
       align-items: flex-start;
       gap: 2px;
       margin-right: {{ item_margin }}px;
-      width: 200px; /* Optimized width for vertical layout */
+      width: {{ (font_size|int * 15) }}px; /* Responsive width based on font size */
+      min-width: {{ (font_size|int * 12) }}px;
+      max-width: {{ (font_size|int * 18) }}px;
       flex-shrink: 0;
-      padding: 4px 8px;
+      padding: {{ (font_size|int * 0.3) }}px {{ (font_size|int * 0.5) }}px;
     }
 
     .asset-name {
       color: {{ asset_color }};
       font-weight: {{ asset_font_weight }};
       font-size: {{ asset_font_size }}%;
-      min-width: 80px;
       flex-shrink: 0;
+      width: 100%;
+      text-align: center;
     }
 
     .price-info {
