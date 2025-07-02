@@ -158,15 +158,14 @@
     /* Common Symbol Styles */
     .symbol-block {
       display: inline-flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
+      flex-direction: row;
+      align-items: center;
+      gap: {{ (font_size|int * 0.5) }}px;
       margin-right: {{ item_margin }}px;
-      width: {{ (font_size|int * 15) }}px; /* Responsive width based on font size */
-      min-width: {{ (font_size|int * 12) }}px;
-      max-width: {{ (font_size|int * 18) }}px;
+      width: {{ (font_size|int * 25) }}px; /* Much wider for horizontal layout with spread */
       flex-shrink: 0;
-      padding: {{ (font_size|int * 0.3) }}px {{ (font_size|int * 0.5) }}px;
+      padding: {{ (font_size|int * 0.2) }}px {{ (font_size|int * 0.4) }}px;
+      white-space: nowrap;
     }
 
     .asset-name {
@@ -174,28 +173,19 @@
       font-weight: {{ asset_font_weight }};
       font-size: {{ asset_font_size }}%;
       flex-shrink: 0;
-      width: 100%;
-      text-align: center;
-    }
-
-    .price-info {
-      display: flex;
-      align-items: baseline;
-      gap: 0.3em;
-      width: 100%;
-      justify-content: space-between;
+      min-width: {{ (font_size|int * 4) }}px;
     }
 
     .price-value {
       font-weight: {{ price_font_weight }};
-      flex: 1;
+      flex-shrink: 0;
+      min-width: {{ (font_size|int * 6) }}px;
     }
 
     .price-change {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.2em;
+      flex-shrink: 0;
       font-size: {{ change_font_size }}%;
+      min-width: {{ (font_size|int * 4) }}px;
     }
 
     .price-change.up {
@@ -215,8 +205,8 @@
       opacity: {{ spread_opacity }};
       font-size: {{ spread_font_size }}%;
       display: {% if show_spread == 'true' %}inline{% else %}none{% endif %};
-      width: 100%;
-      text-align: center;
+      flex-shrink: 0;
+      min-width: {{ (font_size|int * 3) }}px;
     }
 
     .timestamp {
@@ -502,16 +492,12 @@
         
         const baseClass = config.displayMode === 'card' ? 'card-item' : 'symbol-block';
         
-        // Vertical layout optimized for all modes including spread
+        // Horizontal layout: Symbol | Price | Change | Spread
         return `
           <div class="${baseClass}">
             <span class="asset-name">${item.symbol}</span>
-            <div class="price-info">
-              <span class="price-value">${formattedPrice}</span>
-              <span class="price-change ${direction}">
-                ${arrow} ${Math.abs(item.change_pct)}%
-              </span>
-            </div>
+            <span class="price-value">${formattedPrice}</span>
+            <span class="price-change ${direction}">${arrow}${Math.abs(item.change_pct)}%</span>
             <span class="spread-text">${item.spread}</span>
             <span class="timestamp">${timestamp}</span>
           </div>
