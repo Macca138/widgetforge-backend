@@ -71,10 +71,7 @@
 
     .mode-scroll #ticker {
       display: inline-block;
-      animation: scroll {{ scroll_speed }}s linear infinite;
       white-space: nowrap;
-      animation-delay: 0s;
-      animation-fill-mode: both;
       line-height: 1;
       vertical-align: middle;
       /* Hardware acceleration for smooth animation */
@@ -83,7 +80,12 @@
       backface-visibility: hidden;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      /* Prevent animation restart on content change */
+    }
+
+    .mode-scroll .ticker-animate {
+      animation: scroll {{ scroll_speed }}s linear infinite;
+      animation-delay: 0s;
+      animation-fill-mode: both;
       animation-play-state: running;
     }
 
@@ -306,7 +308,7 @@
     <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
   {% endif %}
 
-  <div id="ticker">
+  <div id="ticker" class="{% if display_mode == 'scroll' %}ticker-animate{% endif %}">
     {% if display_mode == 'scroll' and symbols %}
       {% set placeholder_content %}
         {% for symbol in symbols.split(',') %}
@@ -436,13 +438,14 @@
         // Render based on display mode
         const content = this.renderContent(filteredData);
         
-        // For scrolling mode, update less frequently to maintain smooth animation
+        // For scrolling mode, update content but maintain animation class
         if (config.displayMode === 'scroll') {
-          // Only update every 3 seconds for scrolling mode
-          if (!this.lastScrollUpdate || Date.now() - this.lastScrollUpdate > 3000) {
-            ticker.innerHTML = content;
-            this.lastScrollUpdate = Date.now();
-          }
+          // Update content and re-apply animation class
+          ticker.classList.remove('ticker-animate');
+          ticker.innerHTML = content;
+          // Force reflow and re-add animation
+          void ticker.offsetWidth;
+          ticker.classList.add('ticker-animate');
         } else {
           // Use animations for other display modes
           if (config.updateAnimation === 'fade') {
