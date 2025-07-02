@@ -458,6 +458,10 @@
                                 <input type="color" id="bgColor" value="#000000">
                                 <input type="text" id="bgColorText" value="#000000">
                             </div>
+                            <div class="checkbox-item" style="margin-top: 10px;">
+                                <input type="checkbox" id="transparentBg">
+                                <label for="transparentBg">Use Transparent Background</label>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Background Gradient (CSS)</label>
@@ -583,6 +587,31 @@
     </div>
 
     <script>
+        // Handle transparent background toggle
+        function updateBackgroundInputs() {
+            const transparentBg = document.getElementById('transparentBg').checked;
+            const bgColorInput = document.getElementById('bgColor');
+            const bgColorText = document.getElementById('bgColorText');
+            const bgGradientInput = document.getElementById('bgGradient');
+            
+            if (transparentBg) {
+                bgColorInput.disabled = true;
+                bgColorText.disabled = true;
+                bgGradientInput.disabled = true;
+                bgColorText.value = 'transparent';
+                bgGradientInput.value = '';
+            } else {
+                bgColorInput.disabled = false;
+                bgColorText.disabled = false;
+                bgGradientInput.disabled = false;
+                if (bgColorText.value === 'transparent') {
+                    bgColorText.value = '#000000';
+                    bgColorInput.value = '#000000';
+                }
+            }
+            generateWidget();
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             initializeAssetSelection();
@@ -590,6 +619,9 @@
             initializeRangeInputs();
             loadSavedConfig();
             generateWidget();
+            
+            // Add transparent background toggle handler
+            document.getElementById('transparentBg').addEventListener('change', updateBackgroundInputs);
         });
 
         function initializeAssetSelection() {
@@ -667,9 +699,10 @@
             params.append('fontSize', document.getElementById('fontSize').value);
             params.append('fontWeight', document.getElementById('fontWeight').value);
             
-            // Colors
-            params.append('bgColor', document.getElementById('bgColor').value);
-            params.append('bgGradient', document.getElementById('bgGradient').value);
+            // Colors - handle transparent background
+            const transparentBg = document.getElementById('transparentBg').checked;
+            params.append('bgColor', transparentBg ? 'transparent' : document.getElementById('bgColor').value);
+            params.append('bgGradient', transparentBg ? '' : document.getElementById('bgGradient').value);
             params.append('fontColor', document.getElementById('fontColor').value);
             params.append('assetColor', document.getElementById('assetColor').value);
             params.append('upColor', document.getElementById('upColor').value);
@@ -738,6 +771,7 @@
                 fontWeight: document.getElementById('fontWeight').value,
                 bgColor: document.getElementById('bgColor').value,
                 bgGradient: document.getElementById('bgGradient').value,
+                transparentBg: document.getElementById('transparentBg').checked,
                 fontColor: document.getElementById('fontColor').value,
                 assetColor: document.getElementById('assetColor').value,
                 upColor: document.getElementById('upColor').value,
@@ -802,6 +836,11 @@
                     }
                 }
             });
+            
+            // Handle transparent background state
+            if (config.transparentBg) {
+                updateBackgroundInputs();
+            }
         }
 
         function savePreset() {

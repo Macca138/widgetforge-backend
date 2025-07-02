@@ -196,9 +196,11 @@
       display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
       position: relative;
       z-index: 100;
+      {% if bg_color != 'transparent' %}
       background: {{ bg_color }};
       padding: 0 10px;
       border-radius: 4px;
+      {% endif %}
     }
 
     /* Loading State */
