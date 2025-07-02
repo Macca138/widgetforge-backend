@@ -282,6 +282,16 @@ async def enhanced_ticker_widget(request: Request):
         "custom_css": params.get("customCSS", "")
     })
 
+@app.get("/widgets/test-simple", response_class=HTMLResponse)
+async def test_simple_widget(request: Request):
+    params = request.query_params
+    return templates.TemplateResponse("test_simple.html", {
+        "request": request,
+        "font_size": params.get("fontSize", "16"),
+        "symbols": params.get("symbols", ""),
+        "show_spread": params.get("showSpread", "true")
+    })
+
 @app.get("/widgets/smooth-ticker", response_class=HTMLResponse)
 async def smooth_ticker_widget(request: Request):
     params = request.query_params
