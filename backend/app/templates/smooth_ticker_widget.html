@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smooth Ticker Widget</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: {{ bg_color }}{{ bg_gradient if bg_gradient else '' }};
+      font-family: '{{ font }}', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+    }
+
+    .ticker-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    .ticker-track {
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      will-change: transform;
+      animation: scroll-left {{ scroll_speed }}s linear infinite;
+    }
+
+    @keyframes scroll-left {
+      0% { transform: translate3d(0, 0, 0); }
+      100% { transform: translate3d(-50%, 0, 0); }
+    }
+
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      padding: 0 {{ font_size|int * 1.5 }}px;
+      font-size: {{ font_size }}px;
+      font-weight: {{ font_weight }};
+      color: {{ font_color }};
+      flex-shrink: 0;
+      min-width: {{ font_size|int * 15 }}px;
+    }
+
+    .symbol {
+      color: {{ asset_color }};
+      font-weight: 600;
+      margin-right: {{ font_size|int * 0.4 }}px;
+    }
+
+    .price {
+      margin-right: {{ font_size|int * 0.3 }}px;
+    }
+
+    .change {
+      margin-right: {{ font_size|int * 0.3 }}px;
+    }
+
+    .change.up { color: {{ up_color }}; }
+    .change.down { color: {{ down_color }}; }
+    .change.neutral { color: {{ neutral_color }}; }
+
+    .spread {
+      color: {{ spread_color }};
+      opacity: 0.8;
+      font-size: {{ font_size|int * 0.9 }}px;
+      {% if show_spread != 'true' %}display: none;{% endif %}
+    }
+
+    .logo {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: {{ logo_height }}px;
+      z-index: 100;
+      {% if bg_color != 'transparent' %}
+      background: {{ bg_color }};
+      padding: 8px 12px;
+      border-radius: 6px;
+      {% else %}
+      background: rgba(0, 0, 0, 0.8);
+      padding: 8px 12px;
+      border-radius: 6px;
+      {% endif %}
+      display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
+    }
+
+    .connection-status {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #ff4444;
+      opacity: {% if show_connection_status == 'true' %}1{% else %}0{% endif %};
+      transition: background-color 0.3s ease;
+      z-index: 1000;
+    }
+
+    .connection-status.connected {
+      background-color: #00ff88;
+    }
+
+    /* Prevent text selection and improve performance */
+    .ticker-track {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="connection-status" id="connectionStatus"></div>
+  
+  {% if show_logo == 'true' %}
+    <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
+  {% endif %}
+
+  <div class="ticker-container">
+    <div class="ticker-track" id="tickerTrack">
+      <!-- Content will be populated by JavaScript -->
+    </div>
+  </div>
+
+  <script>
+    const config = {
+      symbols: "{{ symbols }}".split(",").filter(s => s),
+      showSpread: {{ show_spread == 'true' ? 'true' : 'false' }}
+    };
+
+    class SmoothTicker {
+      constructor() {
+        this.track = document.getElementById('tickerTrack');
+        this.data = new Map();
+        this.contentHTML = '';
+        
+        this.setupWebSocket();
+        this.initializeContent();
+      }
+
+      setupWebSocket() {
+        const ws = new WebSocket("ws://{{ websocket_host }}/ws/price-stream");
+        
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          document.getElementById('connectionStatus').className = 'connection-status connected';
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            this.updateData(data);
+          } catch (error) {
+            console.error('Error parsing message:', error);
+          }
+        };
+
+        ws.onerror = () => {
+          document.getElementById('connectionStatus').className = 'connection-status';
+        };
+
+        ws.onclose = () => {
+          document.getElementById('connectionStatus').className = 'connection-status';
+          setTimeout(() => this.setupWebSocket(), 3000);
+        };
+      }
+
+      updateData(newData) {
+        let hasChanges = false;
+        
+        newData.forEach(item => {
+          if (config.symbols.length === 0 || config.symbols.includes(item.symbol)) {
+            const oldData = this.data.get(item.symbol);
+            if (!oldData || 
+                oldData.price !== item.price || 
+                oldData.change_pct !== item.change_pct || 
+                oldData.spread !== item.spread) {
+              hasChanges = true;
+            }
+            this.data.set(item.symbol, item);
+          }
+        });
+
+        if (hasChanges) {
+          this.updateContent();
+        }
+      }
+
+      initializeContent() {
+        // Create placeholder content for smooth start
+        if (config.symbols.length > 0) {
+          config.symbols.forEach(symbol => {
+            this.data.set(symbol, {
+              symbol: symbol,
+              price: '-.----',
+              change_pct: 0,
+              spread: '-.-'
+            });
+          });
+          this.updateContent();
+        }
+      }
+
+      updateContent() {
+        const items = Array.from(this.data.values()).map(item => this.createItemHTML(item));
+        
+        // Create exactly 2 copies for seamless loop
+        const content = items.join('');
+        this.track.innerHTML = content + content;
+      }
+
+      createItemHTML(data) {
+        const decimals = this.getDecimalPlaces(data.symbol);
+        let formattedPrice;
+        
+        if (typeof data.price === 'string' && data.price.includes('-')) {
+          formattedPrice = data.price;
+        } else {
+          formattedPrice = Number(data.price).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+          });
+        }
+
+        const arrow = data.change_pct > 0 ? '▲' : data.change_pct < 0 ? '▼' : '─';
+        const changeClass = data.change_pct > 0 ? 'up' : data.change_pct < 0 ? 'down' : 'neutral';
+        const changeText = `${arrow}${Math.abs(data.change_pct)}%`;
+
+        return `
+          <div class="ticker-item">
+            <span class="symbol">${data.symbol}</span>
+            <span class="price">${formattedPrice}</span>
+            <span class="change ${changeClass}">${changeText}</span>
+            <span class="spread">${data.spread}</span>
+          </div>
+        `;
+      }
+
+      getDecimalPlaces(symbol) {
+        if (symbol.includes('BTC') || symbol.includes('ETH')) return 0;
+        if (['NAS100', 'US30', 'SP500', 'DAX40', 'UK100'].includes(symbol)) return 1;
+        if (['XAUUSD', 'XAGUSD', 'XTIUSD', 'XBRUSD'].includes(symbol)) return 2;
+        return 5;
+      }
+    }
+
+    // Initialize the ticker
+    const ticker = new SmoothTicker();
+  </script>
+</body>
+</html>
