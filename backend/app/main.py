@@ -282,6 +282,44 @@ async def enhanced_ticker_widget(request: Request):
         "custom_css": params.get("customCSS", "")
     })
 
+@app.get("/widgets/canvas-ticker", response_class=HTMLResponse)
+async def canvas_ticker_widget(request: Request):
+    params = request.query_params
+    return templates.TemplateResponse("canvas_ticker_widget.html", {
+        "request": request,
+        # Data Configuration
+        "symbols": params.get("symbols", ""),
+        "static_text": params.get("staticText", ""),
+        "websocket_host": request.headers.get("host", "62.171.135.138:8000"),
+        
+        # Typography
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("fontSize", "16"),
+        "font_weight": params.get("fontWeight", "400"),
+        "font_color": params.get("fontColor", "#ffffff"),
+        
+        # Colors
+        "bg_color": params.get("bgColor", "#000000"),
+        "bg_gradient": params.get("bgGradient", ""),
+        "asset_color": params.get("assetColor", "#ffffff"),
+        "up_color": params.get("upColor", "#00ff88"),
+        "down_color": params.get("downColor", "#ff4444"),
+        "neutral_color": params.get("neutralColor", "#cccccc"),
+        "spread_color": params.get("spreadColor", "#999999"),
+        
+        # Animation
+        "scroll_speed": params.get("scrollSpeed", "30"),
+        
+        # Features
+        "show_spread": params.get("showSpread", "true"),
+        "show_connection_status": params.get("showConnectionStatus", "false"),
+        
+        # Logo
+        "show_logo": params.get("showLogo", "false"),
+        "logo_url": params.get("logoUrl", ""),
+        "logo_height": params.get("logoHeight", "30")
+    })
+
 
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():
