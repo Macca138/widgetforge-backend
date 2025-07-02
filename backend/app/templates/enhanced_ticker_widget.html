@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Price Ticker Widget</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;600;700&family=Lato:wght@300;400;700&family=Montserrat:wght@300;400;500;600;700&family=Oswald:wght@300;400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      background: {{ bg_color }}{{ bg_gradient if bg_gradient else '' }};
+      color: {{ font_color }};
+      font-family: '{{ font }}', sans-serif;
+      font-size: {{ font_size }}px;
+      font-weight: {{ font_weight }};
+      font-variant-numeric: tabular-nums;
+      padding: {{ padding }}px;
+      position: relative;
+    }
+
+    /* Connection Status Indicator */
+    .connection-status {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #ff4444;
+      opacity: {{ show_connection_status == 'true' ? '1' : '0' }};
+      transition: background-color 0.3s ease;
+      z-index: 1000;
+    }
+
+    .connection-status.connected {
+      background-color: #00ff88;
+    }
+
+    .connection-status.connecting {
+      background-color: #ffaa00;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Scrolling Ticker Mode */
+    .mode-scroll {
+      display: flex;
+      align-items: center;
+      height: 100vh;
+      white-space: nowrap;
+    }
+
+    .mode-scroll #ticker {
+      display: inline-block;
+      animation: scroll {{ scroll_speed }}s linear infinite;
+      white-space: nowrap;
+    }
+
+    @keyframes scroll {
+      0%   { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+
+    /* Static Mode */
+    .mode-static {
+      display: flex;
+      align-items: center;
+      justify-content: {{ static_align }};
+      height: 100vh;
+      gap: {{ item_spacing }}px;
+      flex-wrap: wrap;
+    }
+
+    /* Grid Mode */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat({{ grid_columns }}, 1fr);
+      gap: {{ grid_gap }}px;
+      align-content: center;
+      min-height: 100vh;
+      padding: {{ grid_padding }}px;
+    }
+
+    /* Card Mode */
+    .mode-card {
+      display: flex;
+      flex-wrap: wrap;
+      gap: {{ card_gap }}px;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: {{ card_padding }}px;
+    }
+
+    .card-item {
+      background: {{ card_bg_color }};
+      border: {{ card_border_width }}px solid {{ card_border_color }};
+      border-radius: {{ card_border_radius }}px;
+      padding: {{ card_inner_padding }}px;
+      box-shadow: {{ card_shadow }};
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card-item:hover {
+      transform: translateY(-2px);
+      box-shadow: {{ card_hover_shadow }};
+    }
+
+    /* Compact Mode */
+    .mode-compact {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .compact-item {
+      text-align: center;
+    }
+
+    /* Common Symbol Styles */
+    .symbol-block {
+      display: inline-flex;
+      flex-direction: {{ item_layout }};
+      align-items: {{ item_align }};
+      gap: {{ item_gap }}px;
+      margin-right: {{ item_margin }}px;
+    }
+
+    .asset-name {
+      color: {{ asset_color }};
+      font-weight: {{ asset_font_weight }};
+      font-size: {{ asset_font_size }}%;
+    }
+
+    .price-info {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5em;
+    }
+
+    .price-value {
+      font-weight: {{ price_font_weight }};
+    }
+
+    .price-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2em;
+      font-size: {{ change_font_size }}%;
+    }
+
+    .price-change.up {
+      color: {{ up_color }};
+    }
+
+    .price-change.down {
+      color: {{ down_color }};
+    }
+
+    .price-change.neutral {
+      color: {{ neutral_color }};
+    }
+
+    .spread-text {
+      color: {{ spread_color }};
+      opacity: {{ spread_opacity }};
+      font-size: {{ spread_font_size }}%;
+      display: {{ show_spread == 'true' ? 'inline' : 'none' }};
+    }
+
+    .timestamp {
+      color: {{ timestamp_color }};
+      font-size: {{ timestamp_font_size }}%;
+      opacity: {{ timestamp_opacity }};
+      display: {{ show_timestamp == 'true' ? 'inline' : 'none' }};
+    }
+
+    /* Logo */
+    .logo {
+      height: {{ logo_height }}px;
+      margin: {{ logo_margin }};
+      display: {{ show_logo == 'true' ? 'block' : 'none' }};
+    }
+
+    /* Loading State */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-size: 1.2em;
+      opacity: 0.7;
+    }
+
+    /* Error State */
+    .error {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #ff4444;
+      font-size: 0.9em;
+    }
+
+    /* Animation Options */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .slide-in {
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Custom CSS Injection */
+    {{ custom_css }}
+  </style>
+</head>
+<body class="mode-{{ display_mode }}">
+  <div class="connection-status" id="connectionStatus"></div>
+  
+  {% if show_logo == 'true' and logo_position == 'top' %}
+    <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
+  {% endif %}
+
+  <div id="ticker" class="loading">Connecting to price feed...</div>
+
+  {% if show_logo == 'true' and logo_position == 'bottom' %}
+    <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
+  {% endif %}
+
+  <script>
+    // Configuration
+    const config = {
+      symbols: "{{ symbols }}".split(",").filter(s => s),
+      staticText: "{{ static_text }}",
+      displayMode: "{{ display_mode }}",
+      updateAnimation: "{{ update_animation }}",
+      showTimestamp: {{ show_timestamp == 'true' ? 'true' : 'false' }},
+      timestampFormat: "{{ timestamp_format }}",
+      priceFormat: {
+        minimumFractionDigits: {{ price_decimals }},
+        maximumFractionDigits: {{ price_decimals }}
+      },
+      reconnectDelay: 1000,
+      maxReconnectDelay: 30000,
+      reconnectMultiplier: 1.5
+    };
+
+    // WebSocket Management
+    class PriceWebSocket {
+      constructor(url) {
+        this.url = url;
+        this.ws = null;
+        this.reconnectDelay = config.reconnectDelay;
+        this.reconnectTimer = null;
+        this.isConnecting = false;
+        this.lastData = new Map();
+      }
+
+      connect() {
+        if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
+          return;
+        }
+
+        this.isConnecting = true;
+        this.updateConnectionStatus('connecting');
+
+        try {
+          this.ws = new WebSocket(this.url);
+
+          this.ws.onopen = () => {
+            console.log('WebSocket connected');
+            this.isConnecting = false;
+            this.reconnectDelay = config.reconnectDelay;
+            this.updateConnectionStatus('connected');
+            document.getElementById('ticker').classList.remove('loading', 'error');
+          };
+
+          this.ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              this.updatePrices(data);
+            } catch (error) {
+              console.error('Error parsing message:', error);
+            }
+          };
+
+          this.ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            this.updateConnectionStatus('error');
+          };
+
+          this.ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            this.isConnecting = false;
+            this.updateConnectionStatus('disconnected');
+            this.scheduleReconnect();
+          };
+        } catch (error) {
+          console.error('Failed to create WebSocket:', error);
+          this.isConnecting = false;
+          this.scheduleReconnect();
+        }
+      }
+
+      scheduleReconnect() {
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+        }
+
+        this.reconnectTimer = setTimeout(() => {
+          this.connect();
+        }, this.reconnectDelay);
+
+        this.reconnectDelay = Math.min(
+          this.reconnectDelay * config.reconnectMultiplier,
+          config.maxReconnectDelay
+        );
+      }
+
+      updateConnectionStatus(status) {
+        const indicator = document.getElementById('connectionStatus');
+        indicator.className = 'connection-status ' + status;
+      }
+
+      updatePrices(data) {
+        const ticker = document.getElementById('ticker');
+        const filteredData = data.filter(item => 
+          config.symbols.length === 0 || config.symbols.includes(item.symbol)
+        );
+
+        // Store latest data for each symbol
+        filteredData.forEach(item => {
+          this.lastData.set(item.symbol, item);
+        });
+
+        // Render based on display mode
+        const content = this.renderContent(filteredData);
+        
+        if (config.updateAnimation === 'fade') {
+          ticker.style.opacity = '0';
+          setTimeout(() => {
+            ticker.innerHTML = content;
+            ticker.style.opacity = '1';
+          }, 150);
+        } else if (config.updateAnimation === 'slide') {
+          ticker.classList.add('slide-in');
+          ticker.innerHTML = content;
+          setTimeout(() => ticker.classList.remove('slide-in'), 500);
+        } else {
+          ticker.innerHTML = content;
+        }
+      }
+
+      renderContent(data) {
+        const items = data.map(item => this.renderItem(item));
+        
+        if (config.staticText && config.displayMode === 'scroll') {
+          items.push(`<span class="symbol-block">${config.staticText}</span>`);
+        }
+
+        return items.join('');
+      }
+
+      renderItem(item) {
+        const direction = item.change_pct > 0 ? 'up' : item.change_pct < 0 ? 'down' : 'neutral';
+        const arrow = item.change_pct > 0 ? '▲' : item.change_pct < 0 ? '▼' : '─';
+        const formattedPrice = Number(item.price).toLocaleString('en-US', config.priceFormat);
+        const timestamp = config.showTimestamp ? this.formatTimestamp() : '';
+        
+        const baseClass = config.displayMode === 'card' ? 'card-item' : 'symbol-block';
+        
+        return `
+          <div class="${baseClass}">
+            <span class="asset-name">${item.symbol}</span>
+            <div class="price-info">
+              <span class="price-value">${formattedPrice}</span>
+              <span class="price-change ${direction}">
+                <span class="arrow">${arrow}</span>
+                <span class="change-value">${Math.abs(item.change_pct)}%</span>
+              </span>
+            </div>
+            <span class="spread-text">Spread: ${item.spread}</span>
+            <span class="timestamp">${timestamp}</span>
+          </div>
+        `;
+      }
+
+      formatTimestamp() {
+        const now = new Date();
+        if (config.timestampFormat === 'time') {
+          return now.toLocaleTimeString();
+        } else if (config.timestampFormat === 'short') {
+          return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        } else {
+          return now.toLocaleString();
+        }
+      }
+
+      disconnect() {
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+        if (this.ws) {
+          this.ws.close();
+          this.ws = null;
+        }
+      }
+    }
+
+    // Initialize WebSocket connection
+    const priceSocket = new PriceWebSocket("ws://{{ websocket_host }}/ws/price-stream");
+    priceSocket.connect();
+
+    // Handle visibility change to pause/resume updates
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        priceSocket.disconnect();
+      } else {
+        priceSocket.connect();
+      }
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      priceSocket.disconnect();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+{
+  "presets": {
+    "minimal-dark": {
+      "name": "Minimal Dark",
+      "description": "Clean dark theme with minimal styling",
+      "config": {
+        "display_mode": "scroll",
+        "font": "Inter",
+        "fontSize": "16",
+        "fontWeight": "400",
+        "bgColor": "#000000",
+        "fontColor": "#ffffff",
+        "assetColor": "#ffffff",
+        "upColor": "#00ff88",
+        "downColor": "#ff4444",
+        "spreadColor": "#666666",
+        "showSpread": "false",
+        "showTimestamp": "false",
+        "showLogo": "false",
+        "scrollSpeed": "30"
+      }
+    },
+    "professional-blue": {
+      "name": "Professional Blue",
+      "description": "Corporate blue theme with gradients",
+      "config": {
+        "display_mode": "scroll",
+        "font": "Roboto",
+        "fontSize": "18",
+        "fontWeight": "500",
+        "bgColor": "#0a1628",
+        "bgGradient": "linear-gradient(90deg, #0a1628 0%, #1e3a5f 100%)",
+        "fontColor": "#e8e8e8",
+        "assetColor": "#64b5f6",
+        "upColor": "#4caf50",
+        "downColor": "#f44336",
+        "spreadColor": "#90a4ae",
+        "showSpread": "true",
+        "showTimestamp": "false",
+        "showLogo": "true",
+        "scrollSpeed": "40"
+      }
+    },
+    "crypto-neon": {
+      "name": "Crypto Neon",
+      "description": "Vibrant neon theme for crypto tickers",
+      "config": {
+        "display_mode": "grid",
+        "font": "Montserrat",
+        "fontSize": "20",
+        "fontWeight": "600",
+        "bgColor": "#0d0d0d",
+        "bgGradient": "radial-gradient(circle at center, #1a1a2e 0%, #0d0d0d 100%)",
+        "fontColor": "#ffffff",
+        "assetColor": "#00ffff",
+        "upColor": "#00ff00",
+        "downColor": "#ff0066",
+        "spreadColor": "#ff00ff",
+        "showSpread": "true",
+        "showTimestamp": "true",
+        "timestampFormat": "short",
+        "showLogo": "false",
+        "gridColumns": "4",
+        "gridGap": "20",
+        "updateAnimation": "fade"
+      }
+    },
+    "financial-terminal": {
+      "name": "Financial Terminal",
+      "description": "Classic trading terminal look",
+      "config": {
+        "display_mode": "static",
+        "font": "Source Sans Pro",
+        "fontSize": "14",
+        "fontWeight": "400",
+        "bgColor": "#0f0f0f",
+        "fontColor": "#00ff00",
+        "assetColor": "#ffff00",
+        "upColor": "#00ff00",
+        "downColor": "#ff0000",
+        "spreadColor": "#00ff00",
+        "showSpread": "true",
+        "showTimestamp": "true",
+        "timestampFormat": "full",
+        "showConnectionStatus": "true",
+        "staticAlign": "left",
+        "customCSS": ".asset-name { text-transform: uppercase; } .price-value { font-family: 'Courier New', monospace; }"
+      }
+    },
+    "card-showcase": {
+      "name": "Card Showcase",
+      "description": "Modern card layout with hover effects",
+      "config": {
+        "display_mode": "card",
+        "font": "Poppins",
+        "fontSize": "16",
+        "fontWeight": "500",
+        "bgColor": "#1a1a1a",
+        "fontColor": "#ffffff",
+        "assetColor": "#ffffff",
+        "upColor": "#4ade80",
+        "downColor": "#f87171",
+        "cardBgColor": "rgba(255,255,255,0.05)",
+        "cardBorderColor": "rgba(255,255,255,0.1)",
+        "cardBorderRadius": "12",
+        "cardShadow": "0 4px 12px rgba(0,0,0,0.3)",
+        "cardHoverShadow": "0 8px 24px rgba(0,0,0,0.5)",
+        "showSpread": "true",
+        "updateAnimation": "slide",
+        "cardGap": "20",
+        "cardPadding": "30"
+      }
+    },
+    "compact-ticker": {
+      "name": "Compact Ticker",
+      "description": "Single symbol compact display",
+      "config": {
+        "display_mode": "compact",
+        "font": "Inter",
+        "fontSize": "24",
+        "fontWeight": "700",
+        "bgColor": "transparent",
+        "fontColor": "#ffffff",
+        "assetColor": "#ffffff",
+        "upColor": "#22c55e",
+        "downColor": "#ef4444",
+        "showSpread": "false",
+        "showTimestamp": "false",
+        "priceDecimals": "2"
+      }
+    },
+    "streaming-overlay": {
+      "name": "Streaming Overlay",
+      "description": "Transparent overlay for streaming",
+      "config": {
+        "display_mode": "scroll",
+        "font": "Roboto",
+        "fontSize": "20",
+        "fontWeight": "500",
+        "bgColor": "transparent",
+        "fontColor": "#ffffff",
+        "assetColor": "#ffeb3b",
+        "upColor": "#76ff03",
+        "downColor": "#ff1744",
+        "scrollSpeed": "25",
+        "showSpread": "false",
+        "customCSS": "body { text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }"
+      }
+    }
+  }
+}

@@ -158,6 +158,18 @@ async def admin_ticker(request: Request):
         "down_color": request.query_params.get("down_color", "#ff4444"),
     })
 
+@app.get("/admin/enhanced-ticker", response_class=HTMLResponse)
+async def admin_enhanced_ticker(request: Request):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    symbols_file = os.path.join(base_dir, "pollers", "symbols.txt")
+    with open(symbols_file, 'r') as f:
+        all_assets = [line.strip() for line in f if line.strip()]
+    
+    return templates.TemplateResponse("admin_enhanced_ticker.html", {
+        "request": request,
+        "all_assets": all_assets
+    })
+
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
     return templates.TemplateResponse("admin_dashboard.html", {
@@ -182,6 +194,92 @@ async def widget_ticker(request: Request):
         "up_color": params.get("up_color", "#00ff00"),
         "down_color": params.get("down_color", "#ff4444"),
         "websocket_host": "62.171.135.138:8000"
+    })
+
+@app.get("/widgets/enhanced-ticker", response_class=HTMLResponse)
+async def enhanced_ticker_widget(request: Request):
+    params = request.query_params
+    return templates.TemplateResponse("enhanced_ticker_widget.html", {
+        "request": request,
+        # Data Configuration
+        "symbols": params.get("symbols", ""),
+        "static_text": params.get("staticText", ""),
+        "websocket_host": request.headers.get("host", "62.171.135.138:8000"),
+        
+        # Display Mode
+        "display_mode": params.get("display_mode", "scroll"),  # scroll, static, grid, card, compact
+        "update_animation": params.get("update_animation", "none"),  # none, fade, slide
+        
+        # Typography
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("fontSize", "16"),
+        "font_weight": params.get("fontWeight", "400"),
+        "font_color": params.get("fontColor", "#ffffff"),
+        
+        # Colors
+        "bg_color": params.get("bgColor", "#000000"),
+        "bg_gradient": params.get("bgGradient", ""),
+        "asset_color": params.get("assetColor", "#ffffff"),
+        "asset_font_weight": params.get("assetFontWeight", "600"),
+        "asset_font_size": params.get("assetFontSize", "100"),
+        "price_font_weight": params.get("priceFontWeight", "500"),
+        "up_color": params.get("upColor", "#00ff88"),
+        "down_color": params.get("downColor", "#ff4444"),
+        "neutral_color": params.get("neutralColor", "#cccccc"),
+        "spread_color": params.get("spreadColor", "#999999"),
+        "spread_opacity": params.get("spreadOpacity", "0.8"),
+        "spread_font_size": params.get("spreadFontSize", "85"),
+        "change_font_size": params.get("changeFontSize", "90"),
+        
+        # Layout
+        "padding": params.get("padding", "0"),
+        "item_spacing": params.get("itemSpacing", "20"),
+        "item_margin": params.get("itemMargin", "30"),
+        "item_gap": params.get("itemGap", "8"),
+        "item_layout": params.get("itemLayout", "row"),  # row, column
+        "item_align": params.get("itemAlign", "center"),
+        
+        # Scroll Mode
+        "scroll_speed": params.get("scrollSpeed", "30"),
+        
+        # Static Mode
+        "static_align": params.get("staticAlign", "center"),  # left, center, right
+        
+        # Grid Mode
+        "grid_columns": params.get("gridColumns", "3"),
+        "grid_gap": params.get("gridGap", "20"),
+        "grid_padding": params.get("gridPadding", "20"),
+        
+        # Card Mode
+        "card_gap": params.get("cardGap", "15"),
+        "card_padding": params.get("cardPadding", "20"),
+        "card_bg_color": params.get("cardBgColor", "rgba(255,255,255,0.05)"),
+        "card_border_width": params.get("cardBorderWidth", "1"),
+        "card_border_color": params.get("cardBorderColor", "rgba(255,255,255,0.1)"),
+        "card_border_radius": params.get("cardBorderRadius", "8"),
+        "card_inner_padding": params.get("cardInnerPadding", "15"),
+        "card_shadow": params.get("cardShadow", "0 2px 8px rgba(0,0,0,0.1)"),
+        "card_hover_shadow": params.get("cardHoverShadow", "0 4px 16px rgba(0,0,0,0.2)"),
+        
+        # Features
+        "show_spread": params.get("showSpread", "true"),
+        "show_timestamp": params.get("showTimestamp", "false"),
+        "timestamp_format": params.get("timestampFormat", "time"),  # time, short, full
+        "timestamp_color": params.get("timestampColor", "#666666"),
+        "timestamp_font_size": params.get("timestampFontSize", "80"),
+        "timestamp_opacity": params.get("timestampOpacity", "0.7"),
+        "show_connection_status": params.get("showConnectionStatus", "false"),
+        "price_decimals": params.get("priceDecimals", "5"),
+        
+        # Logo
+        "show_logo": params.get("showLogo", "false"),
+        "logo_url": params.get("logoUrl", ""),
+        "logo_position": params.get("logoPosition", "top"),  # top, bottom
+        "logo_height": params.get("logoHeight", "30"),
+        "logo_margin": params.get("logoMargin", "10px"),
+        
+        # Custom CSS
+        "custom_css": params.get("customCSS", "")
     })
 
 
