@@ -45,26 +45,26 @@
     .ticker-item {
       display: inline-flex;
       align-items: center;
-      padding: 0 {{ font_size|int * 1.5 }}px;
+      padding: 0 {{ (font_size|int * 1.5)|int }}px;
       font-size: {{ font_size }}px;
       font-weight: {{ font_weight }};
       color: {{ font_color }};
       flex-shrink: 0;
-      min-width: {{ font_size|int * 15 }}px;
+      min-width: {{ (font_size|int * 15)|int }}px;
     }
 
     .symbol {
       color: {{ asset_color }};
       font-weight: 600;
-      margin-right: {{ font_size|int * 0.4 }}px;
+      margin-right: {{ (font_size|int * 0.4)|int }}px;
     }
 
     .price {
-      margin-right: {{ font_size|int * 0.3 }}px;
+      margin-right: {{ (font_size|int * 0.3)|int }}px;
     }
 
     .change {
-      margin-right: {{ font_size|int * 0.3 }}px;
+      margin-right: {{ (font_size|int * 0.3)|int }}px;
     }
 
     .change.up { color: {{ up_color }}; }
@@ -74,7 +74,7 @@
     .spread {
       color: {{ spread_color }};
       opacity: 0.8;
-      font-size: {{ font_size|int * 0.9 }}px;
+      font-size: {{ (font_size|int * 0.9)|int }}px;
       {% if show_spread != 'true' %}display: none;{% endif %}
     }
 
@@ -127,7 +127,7 @@
   <div class="connection-status" id="connectionStatus"></div>
   
   {% if show_logo == 'true' %}
-    <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
+    <img src="{{ logo_url or '/static/images/5ers-logo.png' }}" alt="Logo" class="logo">
   {% endif %}
 
   <div class="ticker-container">
