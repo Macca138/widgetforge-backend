@@ -162,22 +162,31 @@
       align-items: {{ item_align }};
       gap: {{ item_gap }}px;
       margin-right: {{ item_margin }}px;
+      width: 180px; /* Fixed width to prevent jumping */
+      justify-content: space-between;
+      flex-shrink: 0;
     }
 
     .asset-name {
       color: {{ asset_color }};
       font-weight: {{ asset_font_weight }};
       font-size: {{ asset_font_size }}%;
+      min-width: 60px;
+      flex-shrink: 0;
     }
 
     .price-info {
       display: flex;
       align-items: baseline;
       gap: 0.5em;
+      flex: 1;
+      justify-content: flex-end;
     }
 
     .price-value {
       font-weight: {{ price_font_weight }};
+      min-width: 80px;
+      text-align: right;
     }
 
     .price-change {
@@ -293,7 +302,10 @@
         {% for symbol in symbols.split(',') %}
           <span class="symbol-block">
             <span class="asset-name">{{ symbol }}</span>
-            <span class="price-change neutral">-.----</span>
+            <div class="price-info">
+              <span class="price-value">-.----</span>
+              <span class="price-change neutral">─ -.-%</span>
+            </div>
           </span>
         {% endfor %}
       {% endset %}
@@ -452,10 +464,34 @@
         return content;
       }
 
+      getDecimalPlaces(symbol) {
+        // Crypto currencies
+        if (symbol.includes('BTC') || symbol.includes('ETH')) {
+          return 0;
+        }
+        // Indices
+        if (['NAS100', 'US30', 'SP500', 'DAX40', 'UK100'].includes(symbol)) {
+          return 1;
+        }
+        // Metals and Oil
+        if (['XAUUSD', 'XAGUSD', 'XTIUSD', 'XBRUSD'].includes(symbol)) {
+          return 2;
+        }
+        // Forex pairs (default)
+        return 5;
+      }
+
       renderItem(item) {
         const direction = item.change_pct > 0 ? 'up' : item.change_pct < 0 ? 'down' : 'neutral';
         const arrow = item.change_pct > 0 ? '▲' : item.change_pct < 0 ? '▼' : '─';
-        const formattedPrice = Number(item.price).toLocaleString('en-US', config.priceFormat);
+        
+        // Smart decimal formatting based on asset type
+        const decimals = this.getDecimalPlaces(item.symbol);
+        const formattedPrice = Number(item.price).toLocaleString('en-US', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals
+        });
+        
         const timestamp = config.showTimestamp ? this.formatTimestamp() : '';
         
         const baseClass = config.displayMode === 'card' ? 'card-item' : 'symbol-block';
