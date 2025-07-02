@@ -34,7 +34,7 @@
       height: 8px;
       border-radius: 50%;
       background-color: #ff4444;
-      opacity: {{ show_connection_status == 'true' ? '1' : '0' }};
+      opacity: {% if show_connection_status == 'true' %}1{% else %}0{% endif %};
       transition: background-color 0.3s ease;
       z-index: 1000;
     }
@@ -177,21 +177,21 @@
       color: {{ spread_color }};
       opacity: {{ spread_opacity }};
       font-size: {{ spread_font_size }}%;
-      display: {{ show_spread == 'true' ? 'inline' : 'none' }};
+      display: {% if show_spread == 'true' %}inline{% else %}none{% endif %};
     }
 
     .timestamp {
       color: {{ timestamp_color }};
       font-size: {{ timestamp_font_size }}%;
       opacity: {{ timestamp_opacity }};
-      display: {{ show_timestamp == 'true' ? 'inline' : 'none' }};
+      display: {% if show_timestamp == 'true' %}inline{% else %}none{% endif %};
     }
 
     /* Logo */
     .logo {
       height: {{ logo_height }}px;
       margin: {{ logo_margin }};
-      display: {{ show_logo == 'true' ? 'block' : 'none' }};
+      display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
     }
 
     /* Loading State */
@@ -257,7 +257,7 @@
       staticText: "{{ static_text }}",
       displayMode: "{{ display_mode }}",
       updateAnimation: "{{ update_animation }}",
-      showTimestamp: {{ show_timestamp == 'true' ? 'true' : 'false' }},
+      showTimestamp: {% if show_timestamp == 'true' %}true{% else %}false{% endif %},
       timestampFormat: "{{ timestamp_format }}",
       priceFormat: {
         minimumFractionDigits: {{ price_decimals }},
