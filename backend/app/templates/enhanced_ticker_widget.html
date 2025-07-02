@@ -69,6 +69,23 @@
       white-space: nowrap;
     }
 
+    /* Logo mask - creates fade effect before logo */
+    .logo-mask {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 80px;
+      height: 100%;
+      {% if bg_color == 'transparent' %}
+      background: linear-gradient(to right, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
+      {% else %}
+      background: linear-gradient(to right, {{ bg_color }} 60%, transparent 100%);
+      {% endif %}
+      z-index: 99;
+      pointer-events: none;
+      display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
+    }
+
     @keyframes scroll {
       0%   { transform: translateX(100%); }
       100% { transform: translateX(-100%); }
@@ -194,12 +211,19 @@
       height: {{ logo_height }}px;
       margin: {{ logo_margin }};
       display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
-      position: relative;
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
       z-index: 100;
       {% if bg_color != 'transparent' %}
       background: {{ bg_color }};
       padding: 0 10px;
       border-radius: 4px;
+      {% else %}
+      background: rgba(0, 0, 0, 0.8);
+      padding: 5px 10px;
+      border-radius: 6px;
       {% endif %}
     }
 
@@ -249,15 +273,15 @@
 <body class="mode-{{ display_mode }}">
   <div class="connection-status" id="connectionStatus"></div>
   
-  {% if show_logo == 'true' and logo_position == 'top' %}
+  <!-- Logo mask for smooth text fade -->
+  <div class="logo-mask"></div>
+  
+  <!-- Logo positioned absolutely -->
+  {% if show_logo == 'true' %}
     <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
   {% endif %}
 
   <div id="ticker" class="loading">Connecting to price feed...</div>
-
-  {% if show_logo == 'true' and logo_position == 'bottom' %}
-    <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
-  {% endif %}
 
   <script>
     // Configuration
