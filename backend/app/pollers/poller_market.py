@@ -1,8 +1,14 @@
 import MetaTrader5 as mt5
 import time
+import os
+import sys
 from datetime import datetime, timedelta
-from app.services.cache_service import set_price
 import pytz
+
+# Add backend directory to Python path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from app.services.cache_service import set_price
 
 
 def connect_mt5():
@@ -51,7 +57,12 @@ def fetch_price(symbol):
 
 def run_mt5_poll():
     connect_mt5()
-    with open('app/pollers/symbols.txt', 'r') as f:
+    
+    # Get the correct path to symbols.txt
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    symbols_file = os.path.join(script_dir, 'symbols.txt')
+    
+    with open(symbols_file, 'r') as f:
         symbols = [line.strip() for line in f if line.strip()]
 
     while True:
