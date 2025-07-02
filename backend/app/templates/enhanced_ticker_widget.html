@@ -67,6 +67,8 @@
       display: inline-block;
       animation: scroll {{ scroll_speed }}s linear infinite;
       white-space: nowrap;
+      animation-delay: 0s;
+      animation-fill-mode: both;
     }
 
     /* Logo mask - creates fade effect before logo */
@@ -87,7 +89,7 @@
     }
 
     @keyframes scroll {
-      0%   { transform: translateX(100%); }
+      0%   { transform: translateX({% if show_logo == 'true' %}80px{% else %}100%{% endif %}); }
       100% { transform: translateX(-100%); }
     }
 
@@ -281,7 +283,21 @@
     <img src="{{ logo_url or url_for('static', path='images/5ers-logo.png') }}" alt="Logo" class="logo">
   {% endif %}
 
-  <div id="ticker" class="loading">Connecting to price feed...</div>
+  <div id="ticker" class="loading">
+    {% if display_mode == 'scroll' and symbols %}
+      {% set placeholder_content %}
+        {% for symbol in symbols.split(',') %}
+          <span class="symbol-block">
+            <span class="asset-name">{{ symbol }}</span>
+            <span class="price-change neutral">-.----</span>
+          </span>
+        {% endfor %}
+      {% endset %}
+      {{ placeholder_content }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ placeholder_content }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ placeholder_content }}
+    {% else %}
+      Connecting to price feed...
+    {% endif %}
+  </div>
 
   <script>
     // Configuration
@@ -328,7 +344,20 @@
             this.isConnecting = false;
             this.reconnectDelay = config.reconnectDelay;
             this.updateConnectionStatus('connected');
-            document.getElementById('ticker').classList.remove('loading', 'error');
+            
+            const ticker = document.getElementById('ticker');
+            ticker.classList.remove('loading', 'error');
+            
+            // Start with placeholder data immediately for scrolling mode
+            if (config.displayMode === 'scroll' && config.symbols.length > 0) {
+              const placeholderData = config.symbols.map(symbol => ({
+                symbol: symbol,
+                price: '-.-----',
+                change_pct: 0,
+                spread: '-.-----'
+              }));
+              this.updatePrices(placeholderData);
+            }
           };
 
           this.ws.onmessage = (event) => {
@@ -416,9 +445,10 @@
 
         const content = items.join('');
         
-        // For scrolling mode, duplicate content to create seamless loop
+        // For scrolling mode, create multiple copies for truly seamless loop
         if (config.displayMode === 'scroll') {
-          return content + ' &nbsp;&nbsp;&nbsp; ' + content;
+          const separator = ' &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ';
+          return content + separator + content + separator + content;
         }
         
         return content;
