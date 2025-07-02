@@ -59,6 +59,8 @@
       align-items: center;
       height: 100vh;
       white-space: nowrap;
+      overflow: hidden;
+      position: relative;
     }
 
     .mode-scroll #ticker {
@@ -192,6 +194,11 @@
       height: {{ logo_height }}px;
       margin: {{ logo_margin }};
       display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
+      position: relative;
+      z-index: 100;
+      background: {{ bg_color }};
+      padding: 0 10px;
+      border-radius: 4px;
     }
 
     /* Loading State */
@@ -381,7 +388,14 @@
           items.push(`<span class="symbol-block">${config.staticText}</span>`);
         }
 
-        return items.join('');
+        const content = items.join('');
+        
+        // For scrolling mode, duplicate content to create seamless loop
+        if (config.displayMode === 'scroll') {
+          return content + ' &nbsp;&nbsp;&nbsp; ' + content;
+        }
+        
+        return content;
       }
 
       renderItem(item) {
