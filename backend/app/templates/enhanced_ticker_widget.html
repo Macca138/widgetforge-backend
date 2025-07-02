@@ -162,7 +162,7 @@
       align-items: {{ item_align }};
       gap: {{ item_gap }}px;
       margin-right: {{ item_margin }}px;
-      width: 180px; /* Fixed width to prevent jumping */
+      width: 280px; /* Increased width to prevent overlapping */
       justify-content: space-between;
       flex-shrink: 0;
     }
@@ -171,7 +171,7 @@
       color: {{ asset_color }};
       font-weight: {{ asset_font_weight }};
       font-size: {{ asset_font_size }}%;
-      min-width: 60px;
+      min-width: 80px;
       flex-shrink: 0;
     }
 
@@ -185,7 +185,7 @@
 
     .price-value {
       font-weight: {{ price_font_weight }};
-      min-width: 80px;
+      min-width: 120px;
       text-align: right;
     }
 
