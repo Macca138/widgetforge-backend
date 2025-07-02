@@ -83,6 +83,8 @@
       backface-visibility: hidden;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      /* Prevent animation restart on content change */
+      animation-play-state: running;
     }
 
     /* Logo mask - creates fade effect before logo */
@@ -350,6 +352,7 @@
         this.reconnectTimer = null;
         this.isConnecting = false;
         this.lastData = new Map();
+        this.lastScrollUpdate = 0;
       }
 
       connect() {
@@ -433,9 +436,13 @@
         // Render based on display mode
         const content = this.renderContent(filteredData);
         
-        // For scrolling mode, update content immediately to maintain smooth animation
+        // For scrolling mode, update less frequently to maintain smooth animation
         if (config.displayMode === 'scroll') {
-          ticker.innerHTML = content;
+          // Only update every 3 seconds for scrolling mode
+          if (!this.lastScrollUpdate || Date.now() - this.lastScrollUpdate > 3000) {
+            ticker.innerHTML = content;
+            this.lastScrollUpdate = Date.now();
+          }
         } else {
           // Use animations for other display modes
           if (config.updateAnimation === 'fade') {
