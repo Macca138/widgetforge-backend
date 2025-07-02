@@ -161,7 +161,7 @@
       flex-direction: row;
       align-items: center;
       gap: {{ (font_size|int * 0.5) }}px;
-      margin-right: {{ item_margin }}px;
+      margin-right: {{ (font_size|int * 0.5) }}px;
       width: {{ (font_size|int * 25) }}px; /* Much wider for horizontal layout with spread */
       flex-shrink: 0;
       padding: {{ (font_size|int * 0.2) }}px {{ (font_size|int * 0.4) }}px;
@@ -305,7 +305,7 @@
           </span>
         {% endfor %}
       {% endset %}
-      {{ placeholder_content }}<span style="display: inline-block; width: 40px;"></span>{{ placeholder_content }}
+      {{ placeholder_content }}<span style="display: inline-block; width: {{ (font_size|int * 1) }}px;"></span>{{ placeholder_content }}
     {% else %}
       Connecting to price feed...
     {% endif %}
@@ -453,7 +453,7 @@
         
         // For scrolling mode, create exactly 2 copies for seamless loop
         if (config.displayMode === 'scroll') {
-          const separator = '<span style="display: inline-block; width: 40px;"></span>';
+          const separator = `<span style="display: inline-block; width: ${Math.max(config.fontSize || 16, 16)}px;"></span>`;
           return content + separator + content;
         }
         
