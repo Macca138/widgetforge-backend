@@ -158,13 +158,13 @@
     /* Common Symbol Styles */
     .symbol-block {
       display: inline-flex;
-      flex-direction: {{ item_layout }};
-      align-items: {{ item_align }};
-      gap: {{ item_gap }}px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
       margin-right: {{ item_margin }}px;
-      width: 280px; /* Increased width to prevent overlapping */
-      justify-content: space-between;
+      width: 200px; /* Optimized width for vertical layout */
       flex-shrink: 0;
+      padding: 4px 8px;
     }
 
     .asset-name {
@@ -178,15 +178,14 @@
     .price-info {
       display: flex;
       align-items: baseline;
-      gap: 0.5em;
-      flex: 1;
-      justify-content: flex-end;
+      gap: 0.3em;
+      width: 100%;
+      justify-content: space-between;
     }
 
     .price-value {
       font-weight: {{ price_font_weight }};
-      min-width: 120px;
-      text-align: right;
+      flex: 1;
     }
 
     .price-change {
@@ -213,6 +212,8 @@
       opacity: {{ spread_opacity }};
       font-size: {{ spread_font_size }}%;
       display: {% if show_spread == 'true' %}inline{% else %}none{% endif %};
+      width: 100%;
+      text-align: center;
     }
 
     .timestamp {
@@ -220,6 +221,8 @@
       font-size: {{ timestamp_font_size }}%;
       opacity: {{ timestamp_opacity }};
       display: {% if show_timestamp == 'true' %}inline{% else %}none{% endif %};
+      width: 100%;
+      text-align: center;
     }
 
     /* Logo */
@@ -496,17 +499,17 @@
         
         const baseClass = config.displayMode === 'card' ? 'card-item' : 'symbol-block';
         
+        // Vertical layout optimized for all modes including spread
         return `
           <div class="${baseClass}">
             <span class="asset-name">${item.symbol}</span>
             <div class="price-info">
               <span class="price-value">${formattedPrice}</span>
               <span class="price-change ${direction}">
-                <span class="arrow">${arrow}</span>
-                <span class="change-value">${Math.abs(item.change_pct)}%</span>
+                ${arrow} ${Math.abs(item.change_pct)}%
               </span>
             </div>
-            <span class="spread-text">Spread: ${item.spread}</span>
+            <span class="spread-text">${item.spread}</span>
             <span class="timestamp">${timestamp}</span>
           </div>
         `;
