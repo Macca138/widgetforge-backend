@@ -300,8 +300,9 @@ async def smooth_ticker_widget(request: Request):
         # Data Configuration
         "symbols": params.get("symbols", ""),
         "static_text": params.get("staticText", ""),
-        "websocket_host": request.headers.get("host", "127.0.0.1:8000"),
+"websocket_host": request.headers.get("host", "127.0.0.1:8000"),
         "websocket_protocol": "wss" if "https" in str(request.url) else "ws",
+
         
         # Typography
         "font": params.get("font", "Inter"),
