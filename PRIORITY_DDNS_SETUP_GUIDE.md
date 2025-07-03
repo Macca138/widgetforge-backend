@@ -195,7 +195,7 @@ Get-NetFirewallRule -DisplayName "*WidgetForge*"
 
 3. **Test Widget Load**:
    ```
-   http://yourcompany.ddns.net:8000/widgets/enhanced-ticker?symbols=EURUSD
+   http://yourcompany.ddns.net:8000/widgets/smooth-ticker?symbols=EURUSD
    ```
 
 ### EVMUX Integration Test
@@ -211,20 +211,20 @@ Create a simple HTML test file:
 <body>
     <h1>WidgetForge EVMUX Test</h1>
     
-    <!-- Basic ticker test -->
+    <!-- Smooth ticker test -->
     <iframe 
-        src="http://yourcompany.ddns.net:8000/widgets/enhanced-ticker?symbols=EURUSD,GBPUSD,BTCUSD"
+        src="http://yourcompany.ddns.net:8000/widgets/smooth-ticker?symbols=EURUSD,GBPUSD,BTCUSD&scrollSpeed=30&showSpread=true"
         width="100%" 
         height="60" 
         frameborder="0"
         style="border: none; overflow: hidden;"
     ></iframe>
     
-    <!-- Grid layout test -->
+    <!-- Professional styled ticker test -->
     <iframe 
-        src="http://yourcompany.ddns.net:8000/widgets/enhanced-ticker?symbols=EURUSD,GBPUSD,USDJPY,AUDUSD&display_mode=grid&gridColumns=2"
-        width="400" 
-        height="200" 
+        src="http://yourcompany.ddns.net:8000/widgets/smooth-ticker?symbols=EURUSD,GBPUSD,USDJPY,AUDUSD&font=Inter&fontSize=18&upColor=%2300ff88&downColor=%23ff4444"
+        width="100%" 
+        height="60" 
         frameborder="0"
         style="border: none; overflow: hidden; margin-top: 20px;"
     ></iframe>
@@ -265,19 +265,19 @@ Get-NetFirewallRule -DisplayName "*WidgetForge*" | Format-Table
 
 Once setup is complete, your EVMUX embed URLs will be:
 
-### Basic Scrolling Ticker:
+### Basic Smooth Ticker:
 ```
-http://yourcompany.ddns.net:8000/widgets/enhanced-ticker?symbols=EURUSD,GBPUSD,BTCUSD
+http://yourcompany.ddns.net:8000/widgets/smooth-ticker?symbols=EURUSD,GBPUSD,BTCUSD&scrollSpeed=30&showSpread=true
 ```
 
-### Professional Grid Layout:
+### Professional Styled Ticker:
 ```
-http://yourcompany.ddns.net:8000/widgets/enhanced-ticker?symbols=EURUSD,GBPUSD,USDJPY,AUDUSD&display_mode=grid&gridColumns=2&font=Inter&fontSize=18&upColor=%2300ff88&downColor=%23ff4444
+http://yourcompany.ddns.net:8000/widgets/smooth-ticker?symbols=EURUSD,GBPUSD,USDJPY,AUDUSD&font=Inter&fontSize=18&upColor=%2300ff88&downColor=%23ff4444&scrollSpeed=162&showSpread=true
 ```
 
 ### With HTTPS (after SSL setup):
 ```
-https://yourcompany.ddns.net/widgets/enhanced-ticker?symbols=EURUSD,GBPUSD
+https://yourcompany.ddns.net/widgets/smooth-ticker?symbols=EURUSD,GBPUSD&scrollSpeed=30&showSpread=true
 ```
 
 ---
@@ -293,7 +293,7 @@ https://yourcompany.ddns.net/widgets/enhanced-ticker?symbols=EURUSD,GBPUSD
 ## 🆘 Emergency Fallback
 
 If DDNS fails during live stream:
-1. Use direct IP: `http://[your-ip]:8000/widgets/enhanced-ticker`
+1. Use direct IP: `http://[your-ip]:8000/widgets/smooth-ticker`
 2. Switch to static HTML ticker with cached prices
 3. Use mobile hotspot if internet issues
 

@@ -184,7 +184,7 @@
       }
 
       setupWebSocket() {
-        const ws = new WebSocket("ws://{{ websocket_host }}/ws/price-stream");
+        const ws = new WebSocket("{{ websocket_protocol }}://{{ websocket_host }}/ws/price-stream");
         
         ws.onopen = () => {
           console.log('WebSocket connected');
