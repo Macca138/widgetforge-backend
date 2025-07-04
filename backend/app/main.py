@@ -372,13 +372,21 @@ async def canvas_ticker_widget(request: Request):
 @app.get("/widgets/market-sessions", response_class=HTMLResponse)
 async def market_sessions_widget(request: Request):
     params = dict(request.query_params)
+    
+    # Handle background opacity
+    bg_opacity = params.get("bgOpacity", "")
+    if bg_opacity:
+        bg_opacity = f"{int(float(bg_opacity) * 255):02x}"  # Convert 0-1 to hex
+    
     return templates.TemplateResponse("market_sessions_widget.html", {
         "request": request,
         "font": params.get("font", "Inter"),
         "font_size": params.get("fontSize", "16"),
         "font_weight": params.get("fontWeight", "700"),
         "font_color": params.get("fontColor", "#fff"),
-        "bg_color": params.get("bgColor", "transparent"),
+        "bg_color": params.get("bgColor", "#000000"),
+        "bg_opacity": bg_opacity,
+        "border_radius": params.get("borderRadius", "0"),
         "session_color": params.get("sessionColor", "#DDFD6C"),
         "clock_color": params.get("clockColor", "#DDFD6C"),
     })
