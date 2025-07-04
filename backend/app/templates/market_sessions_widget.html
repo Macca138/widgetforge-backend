@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=600, initial-scale=1.0">
+  <title>Market Sessions Widget</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    .session-widget-container {
+      width: 100%;
+      max-width: 600px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-sizing: border-box;
+      margin: 8px 0;
+    }
+    .sessions {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      justify-content: flex-start;
+      width: auto;
+      height: 100%;
+    }
+    .session {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 80px;
+      height: 100%;
+      text-align: center;
+      padding: 0 8px;
+      box-sizing: border-box;
+    }
+    .session-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-bottom: 4px;
+      background: #ff4444;
+      display: inline-block;
+    }
+    .session-dot.open {
+      background: #00ff88;
+    }
+    .session-name {
+      color: {{ session_color }};
+      font-weight: {{ font_weight }};
+      font-size: {{ font_size }}px;
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+    }
+    .session-status {
+      font-size: {{ (font_size|int * 0.8)|int }}px;
+      color: {{ font_color }};
+      font-weight: 400;
+      margin-bottom: 0;
+      line-height: 1.1;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .clock {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      min-width: 120px;
+      height: 100%;
+    }
+    .clock-label {
+      color: {{ clock_color }};
+      font-size: {{ (font_size|int * 0.9)|int }}px;
+      font-weight: {{ font_weight }};
+      margin-bottom: 2px;
+      text-align: right;
+    }
+    .clock-time {
+      color: {{ font_color }};
+      font-size: {{ (font_size|int * 1.7)|int }}px;
+      font-weight: {{ font_weight }};
+      letter-spacing: 1px;
+      text-align: right;
+    }
+    @media (max-width: 600px) {
+      .session-widget-container { padding: 0 8px; }
+      .sessions { gap: 8px; }
+      .session { min-width: 60px; }
+      .clock { min-width: 80px; }
+      .clock-time { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="session-widget-container" style="background: {{ bg_color }}; font-family: '{{ font }}', Arial, sans-serif;">
+    <div class="sessions" id="sessions"></div>
+    <div class="clock">
+      <div class="clock-label" id="clock-label" style="color: {{ clock_color }}; font-size: {{ (font_size|int * 0.9)|int }}px; font-weight: {{ font_weight }};"></div>
+      <div class="clock-time" id="clock-time" style="color: {{ font_color }}; font-size: {{ (font_size|int * 1.7)|int }}px; font-weight: {{ font_weight }};"></div>
+    </div>
+  </div>
+  <script>
+    // --- BEGIN: Robust Market Session Logic (ported from original script) ---
+    // Market configs with DST
+    const marketConfigs = {
+      Sydney: {
+        start: 22, end: 7, timezone: 10, dst: { start: '10-02', end: '04-02', offset: 1 }
+      },
+      Tokyo: {
+        start: 0, end: 9, timezone: 9, dst: { start: '', end: '', offset: 0 }
+      },
+      London: {
+        start: 8, end: 17, timezone: 0, dst: { start: '03-30', end: '10-27', offset: 1 }
+      },
+      'New York': {
+        start: 13, end: 22, timezone: -5, dst: { start: '03-09', end: '11-02', offset: 1 }
+      }
+    };
+    // Demo holiday calendar (expand as needed)
+    const holidays = {
+      'Sydney': ['2025-01-01', '2025-12-25', '2025-12-26'],
+      'Tokyo': ['2025-01-01', '2025-12-25'],
+      'London': ['2025-01-01', '2025-12-25', '2025-12-26'],
+      'New York': ['2025-01-01', '2025-07-04', '2025-12-25']
+    };
+    function pad(n) { return n < 10 ? '0' + n : n; }
+    function getDstOffset(market, date) {
+      const cfg = marketConfigs[market];
+      if (!cfg.dst.start || !cfg.dst.end) return 0;
+      const year = date.getUTCFullYear();
+      const dstStart = new Date(`${year}-${cfg.dst.start}T02:00:00Z`);
+      const dstEnd = new Date(`${year}-${cfg.dst.end}T02:00:00Z`);
+      if (dstStart < dstEnd) {
+        // Northern hemisphere
+        if (date >= dstStart && date < dstEnd) return cfg.dst.offset;
+      } else {
+        // Southern hemisphere (Sydney)
+        if (date >= dstStart || date < dstEnd) return cfg.dst.offset;
+      }
+      return 0;
+    }
+    function getMarketLocalDate(date, market) {
+      const cfg = marketConfigs[market];
+      const offset = cfg.timezone + getDstOffset(market, date);
+      const d = new Date(date.getTime());
+      d.setMinutes(d.getMinutes() + offset * 60);
+      return d;
+    }
+    function isWeekend(date, market) {
+      const local = getMarketLocalDate(date, market);
+      const day = local.getUTCDay();
+      // Sydney: special case for Sunday evening open
+      if (market === 'Sydney' && day === 0) {
+        const hour = local.getUTCHours();
+        return hour < 8;
+      }
+      return day === 0 || day === 6;
+    }
+    function isHoliday(date, market) {
+      const local = getMarketLocalDate(date, market);
+      const y = local.getUTCFullYear();
+      const m = pad(local.getUTCMonth() + 1);
+      const d = pad(local.getUTCDate());
+      const dateStr = `${y}-${m}-${d}`;
+      return holidays[market] && holidays[market].includes(dateStr);
+    }
+    function getNextValidTradingDay(date, market) {
+      let d = new Date(date.getTime());
+      while (isWeekend(d, market) || isHoliday(d, market)) {
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      return d;
+    }
+    function getMarketStatus(now, market) {
+      const cfg = marketConfigs[market];
+      const hours = { start: cfg.start, end: cfg.end };
+      // Weekend/holiday check
+      if (isWeekend(now, market)) {
+        const nextOpen = getNextValidTradingDay(now, market);
+        nextOpen.setUTCHours(cfg.start, 0, 0, 0);
+        const diffMs = nextOpen - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: false, status: `Weekend - Opens in ${diffH}h ${pad(diffM)}m` };
+      }
+      if (isHoliday(now, market)) {
+        const nextOpen = getNextValidTradingDay(now, market);
+        nextOpen.setUTCHours(cfg.start, 0, 0, 0);
+        const diffMs = nextOpen - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: false, status: `Holiday - Opens in ${diffH}h ${pad(diffM)}m` };
+      }
+      // Session open/close check (in UTC)
+      const utcHour = now.getUTCHours();
+      let isOpen;
+      if (hours.start > hours.end) {
+        isOpen = (utcHour >= hours.start || utcHour < hours.end);
+      } else {
+        isOpen = (utcHour >= hours.start && utcHour < hours.end);
+      }
+      if (isOpen) {
+        // Time until close
+        let close = new Date(now);
+        if (hours.end > utcHour) {
+          close.setUTCHours(hours.end, 0, 0, 0);
+        } else {
+          close.setUTCDate(close.getUTCDate() + 1);
+          close.setUTCHours(hours.end, 0, 0, 0);
+        }
+        const diffMs = close - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
+      } else {
+        // Find next valid open
+        let nextOpen = new Date(now);
+        if (hours.start > utcHour) {
+          nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        } else {
+          nextOpen.setUTCDate(nextOpen.getUTCDate() + 1);
+          nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        }
+        nextOpen = getNextValidTradingDay(nextOpen, market);
+        nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        const diffMs = nextOpen - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: false, status: `Opens in ${diffH}h ${pad(diffM)}m` };
+      }
+    }
+    // --- END: Robust Market Session Logic ---
+
+    // --- BEGIN: Improved Market Session Logic ---
+    function getMarketLocalDate(date, market) {
+      const cfg = marketConfigs[market];
+      const offset = cfg.timezone + getDstOffset(market, date);
+      const d = new Date(date.getTime());
+      d.setMinutes(d.getMinutes() + offset * 60);
+      return d;
+    }
+    function isWeekendLocal(local, market) {
+      const day = local.getUTCDay();
+      // Sydney: special case for Sunday evening open
+      if (market === 'Sydney' && day === 0) {
+        const hour = local.getUTCHours();
+        return hour < 8;
+      }
+      return day === 0 || day === 6;
+    }
+    function isHolidayLocal(local, market) {
+      const y = local.getUTCFullYear();
+      const m = pad(local.getUTCMonth() + 1);
+      const d = pad(local.getUTCDate());
+      const dateStr = `${y}-${m}-${d}`;
+      return holidays[market] && holidays[market].includes(dateStr);
+    }
+    function getNextValidTradingDayLocal(local, market) {
+      let d = new Date(local.getTime());
+      while (isWeekendLocal(d, market) || isHolidayLocal(d, market)) {
+        d.setUTCDate(d.getUTCDate() + 1);
+        d.setUTCHours(0,0,0,0);
+      }
+      return d;
+    }
+    function getMarketStatus(now, market) {
+      const cfg = marketConfigs[market];
+      const hours = { start: cfg.start, end: cfg.end };
+      const local = getMarketLocalDate(now, market);
+      // Weekend/holiday check
+      if (isWeekendLocal(local, market)) {
+        let nextOpen = getNextValidTradingDayLocal(local, market);
+        nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        // Convert nextOpen back to UTC for diff
+        const nextOpenUTC = new Date(nextOpen.getTime() - ((cfg.timezone + getDstOffset(market, nextOpen)) * 60 * 60 * 1000));
+        const diffMs = nextOpenUTC - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: false, status: `Weekend - Opens in ${diffH}h ${pad(diffM)}m` };
+      }
+      if (isHolidayLocal(local, market)) {
+        let nextOpen = getNextValidTradingDayLocal(local, market);
+        nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        const nextOpenUTC = new Date(nextOpen.getTime() - ((cfg.timezone + getDstOffset(market, nextOpen)) * 60 * 60 * 1000));
+        const diffMs = nextOpenUTC - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: false, status: `Holiday - Opens in ${diffH}h ${pad(diffM)}m` };
+      }
+      // Session open/close check (in local time)
+      const hour = local.getUTCHours();
+      let isOpen;
+      if (hours.start > hours.end) {
+        // Cross-midnight session
+        isOpen = (hour >= hours.start || hour < hours.end);
+      } else {
+        isOpen = (hour >= hours.start && hour < hours.end);
+      }
+      if (isOpen) {
+        // Time until close (in local time)
+        let close = new Date(local.getTime());
+        if (hours.end > hour) {
+          close.setUTCHours(hours.end, 0, 0, 0);
+        } else {
+          close.setUTCDate(close.getUTCDate() + 1);
+          close.setUTCHours(hours.end, 0, 0, 0);
+        }
+        // Convert close back to UTC for diff
+        const closeUTC = new Date(close.getTime() - ((cfg.timezone + getDstOffset(market, close)) * 60 * 60 * 1000));
+        const diffMs = closeUTC - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
+      } else {
+        // Find next valid open (in local time)
+        let nextOpen = new Date(local.getTime());
+        if (hours.start > hour) {
+          nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        } else {
+          nextOpen.setUTCDate(nextOpen.getUTCDate() + 1);
+          nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        }
+        nextOpen = getNextValidTradingDayLocal(nextOpen, market);
+        nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        const nextOpenUTC = new Date(nextOpen.getTime() - ((cfg.timezone + getDstOffset(market, nextOpen)) * 60 * 60 * 1000));
+        const diffMs = nextOpenUTC - now;
+        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return { open: false, status: `Opens in ${diffH}h ${pad(diffM)}m` };
+      }
+    }
+    // --- END: Improved Market Session Logic ---
+
+    // Render sessions (updated to use robust logic)
+    function renderSessions() {
+      const now = new Date();
+      const nowUTC = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
+      const container = document.getElementById('sessions');
+      container.innerHTML = '';
+      Object.keys(marketConfigs).forEach(market => {
+        const { open, status } = getMarketStatus(nowUTC, market);
+        container.innerHTML += `
+          <div class="session">
+            <span class="session-dot${open ? ' open' : ''}"></span>
+            <span class="session-name" style="color: {{ session_color }}; font-weight: {{ font_weight }}; font-size: {{ font_size }}px;">${market}</span>
+            <span class="session-status" style="color: {{ font_color }}; font-size: {{ (font_size|int * 0.8)|int }}px;">${status}</span>
+          </div>
+        `;
+      });
+    }
+    // Rotating clock (unchanged)
+    let clockIdx = 0;
+    const marketList = Object.keys(marketConfigs);
+    function renderClock() {
+      const market = marketList[clockIdx];
+      const cfg = marketConfigs[market];
+      const now = new Date();
+      const offset = cfg.timezone + getDstOffset(market, now);
+      const local = new Date(now.getTime());
+      local.setUTCHours(local.getUTCHours() + offset);
+      document.getElementById('clock-label').textContent = market + ' Time';
+      document.getElementById('clock-time').textContent = `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}`;
+    }
+    setInterval(() => {
+      clockIdx = (clockIdx + 1) % marketList.length;
+      renderClock();
+    }, 4000);
+    setInterval(() => {
+      renderSessions();
+      renderClock();
+    }, 1000);
+    renderSessions();
+    renderClock();
+  </script>
+</body>
+</html> 

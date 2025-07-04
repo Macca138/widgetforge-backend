@@ -147,13 +147,13 @@ async def admin_ticker(request: Request):
         "selected_assets": selected_assets,
         "font": request.query_params.get("font", "Arial"),
         "font_size": request.query_params.get("fontSize", "16"),
-        "font_color": request.query_params.get("fontColor", "#ffffff"),
+        "font_color": request.query_params.get("fontColor", "#f6f6fd"),
         "bg_color": request.query_params.get("bgColor", "#000000"),
-        "scroll_speed": request.query_params.get("scrollSpeed", "30"),
+        "scroll_speed": request.query_params.get("scrollSpeed", "120"),
         "static_text": request.query_params.get("staticText", ""),
         "show_logo": request.query_params.get("show_logo", "false"),
         "asset_color": request.query_params.get("asset_color", "#ffffff"),
-        "spread_color": request.query_params.get("spread_color", "#cccccc"),
+        "spread_color": request.query_params.get("spread_color", "#f6f6fd"),
         "up_color": request.query_params.get("up_color", "#00ff00"),
         "down_color": request.query_params.get("down_color", "#ff4444"),
     })
@@ -300,9 +300,8 @@ async def smooth_ticker_widget(request: Request):
         # Data Configuration
         "symbols": params.get("symbols", ""),
         "static_text": params.get("staticText", ""),
-"websocket_host": request.headers.get("host", "127.0.0.1:8000"),
-        "websocket_protocol": "wss" if "https" in str(request.url) else "ws",
-
+        "websocket_host": "5ers-stream.ddns.net" if "5ers-stream.ddns.net" in request.headers.get("host", "") else "127.0.0.1:8000",
+        "websocket_protocol": "wss" if "5ers-stream.ddns.net" in request.headers.get("host", "") else "ws",
         
         # Typography
         "font": params.get("font", "Inter"),
@@ -370,6 +369,19 @@ async def canvas_ticker_widget(request: Request):
         "logo_height": params.get("logoHeight", "30")
     })
 
+@app.get("/widgets/market-sessions", response_class=HTMLResponse)
+async def market_sessions_widget(request: Request):
+    params = dict(request.query_params)
+    return templates.TemplateResponse("market_sessions_widget.html", {
+        "request": request,
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("fontSize", "16"),
+        "font_weight": params.get("fontWeight", "700"),
+        "font_color": params.get("fontColor", "#fff"),
+        "bg_color": params.get("bgColor", "transparent"),
+        "session_color": params.get("sessionColor", "#DDFD6C"),
+        "clock_color": params.get("clockColor", "#DDFD6C"),
+    })
 
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():

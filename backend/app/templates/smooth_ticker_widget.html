@@ -47,22 +47,24 @@
     .ticker-item {
       display: inline-flex;
       align-items: center;
-      padding: 0 {{ (font_size|int * 1.5)|int }}px;
+      padding: 0 8px;
+      margin-right: 48px;
       font-size: {{ font_size }}px;
       font-weight: {{ font_weight }};
       color: {{ font_color }};
       flex-shrink: 0;
-      min-width: {{ (font_size|int * 22)|int }}px;
-      justify-content: space-between;
+      min-width: 0;
+      justify-content: flex-start;
       font-variant-numeric: tabular-nums;
       overflow: hidden;
+    }
+    .ticker-item > *:not(:first-child) {
+      margin-left: 8px;
     }
 
     .symbol {
       color: {{ asset_color }};
       font-weight: 600;
-      min-width: {{ (font_size|int * 4)|int }}px;
-      max-width: {{ (font_size|int * 5)|int }}px;
       text-align: left;
       flex-shrink: 0;
       overflow: hidden;
@@ -71,8 +73,7 @@
     }
 
     .price {
-      min-width: {{ (font_size|int * 6)|int }}px;
-      max-width: {{ (font_size|int * 7)|int }}px;
+      width: 90px;
       text-align: right;
       flex-shrink: 0;
       font-variant-numeric: tabular-nums;
@@ -82,8 +83,7 @@
     }
 
     .change {
-      min-width: {{ (font_size|int * 4)|int }}px;
-      max-width: {{ (font_size|int * 5)|int }}px;
+      width: 70px;
       text-align: center;
       flex-shrink: 0;
       overflow: hidden;
@@ -96,12 +96,11 @@
     .change.neutral { color: {{ neutral_color }}; }
 
     .spread {
-      color: {{ spread_color }};
+      color: {{ font_color }};
       opacity: 0.8;
       font-size: {{ (font_size|int * 0.9)|int }}px;
-      min-width: {{ (font_size|int * 2.5)|int }}px;
-      max-width: {{ (font_size|int * 3.5)|int }}px;
-      text-align: right;
+      width: 90px;
+      text-align: :left;
       flex-shrink: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -116,15 +115,9 @@
       transform: translateY(-50%);
       height: {{ logo_height }}px;
       z-index: 100;
-      {% if bg_color != 'transparent' %}
-      background: {{ bg_color }};
+      background: #3E2680;
       padding: 8px 12px;
       border-radius: 6px;
-      {% else %}
-      background: rgba(0, 0, 0, 0.8);
-      padding: 8px 12px;
-      border-radius: 6px;
-      {% endif %}
       display: {% if show_logo == 'true' %}block{% else %}none{% endif %};
     }
 
