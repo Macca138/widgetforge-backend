@@ -92,6 +92,33 @@
       letter-spacing: 1px;
       text-align: right;
     }
+    .clock-flip-container {
+      perspective: 1000px;
+      display: inline-block;
+      min-width: 120px;
+      text-align: right;
+    }
+    .clock-flipper {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.6s ease-in-out;
+    }
+    .clock-flipper.flipping {
+      transform: rotateX(180deg);
+    }
+    .clock-face {
+      position: absolute;
+      width: 100%;
+      backface-visibility: hidden;
+      text-align: right;
+    }
+    .clock-face.front {
+      z-index: 2;
+    }
+    .clock-face.back {
+      transform: rotateX(180deg);
+      z-index: 1;
+    }
     @media (max-width: 600px) {
       .session-widget-container { padding: 0 8px; }
       .sessions { gap: 8px; }
@@ -105,8 +132,18 @@
   <div class="session-widget-container" style="background: {{ bg_color }}; font-family: '{{ font }}', Arial, sans-serif;">
     <div class="sessions" id="sessions"></div>
     <div class="clock">
-      <div class="clock-label" id="clock-label" style="color: {{ clock_color }}; font-size: {{ (font_size|int * 0.9)|int }}px; font-weight: {{ font_weight }};"></div>
-      <div class="clock-time" id="clock-time" style="color: {{ font_color }}; font-size: {{ (font_size|int * 1.7)|int }}px; font-weight: {{ font_weight }};"></div>
+      <div class="clock-flip-container">
+        <div class="clock-flipper" id="clock-flipper">
+          <div class="clock-face front" id="clock-front">
+            <div class="clock-label" style="color: {{ clock_color }}; font-size: {{ (font_size|int * 0.9)|int }}px; font-weight: {{ font_weight }};"></div>
+            <div class="clock-time" style="color: {{ font_color }}; font-size: {{ (font_size|int * 1.7)|int }}px; font-weight: {{ font_weight }};"></div>
+          </div>
+          <div class="clock-face back" id="clock-back">
+            <div class="clock-label" style="color: {{ clock_color }}; font-size: {{ (font_size|int * 0.9)|int }}px; font-weight: {{ font_weight }};"></div>
+            <div class="clock-time" style="color: {{ font_color }}; font-size: {{ (font_size|int * 1.7)|int }}px; font-weight: {{ font_weight }};"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -407,9 +444,17 @@
         `;
       });
     }
-    // Rotating clock
+    // Rotating clock with flip animation
     let clockIdx = 0;
+    let isFlipping = false;
     const marketList = Object.keys(marketConfigs);
+    
+    function updateClockContent(face, market, time) {
+      const clockFace = document.getElementById(face);
+      clockFace.querySelector('.clock-label').textContent = market + ' Time';
+      clockFace.querySelector('.clock-time').textContent = time;
+    }
+    
     function renderClock() {
       const market = marketList[clockIdx];
       const cfg = marketConfigs[market];
@@ -419,14 +464,51 @@
       const dstOffset = getDstOffset(market, now);
       const marketOffset = cfg.timezone + dstOffset;
       const marketLocal = new Date(now.getTime() + marketOffset * 60 * 60 * 1000);
+      const timeString = `${pad(marketLocal.getUTCHours())}:${pad(marketLocal.getUTCMinutes())}`;
       
-      document.getElementById('clock-label').textContent = market + ' Time';
-      document.getElementById('clock-time').textContent = `${pad(marketLocal.getUTCHours())}:${pad(marketLocal.getUTCMinutes())}:${pad(marketLocal.getUTCSeconds())}`;
+      // Update the front face (currently visible)
+      updateClockContent('clock-front', market, timeString);
     }
-    setInterval(() => {
-      clockIdx = (clockIdx + 1) % marketList.length;
-      renderClock();
-    }, 4000);
+    
+    function flipClock() {
+      if (isFlipping) return;
+      
+      isFlipping = true;
+      const flipper = document.getElementById('clock-flipper');
+      const nextIdx = (clockIdx + 1) % marketList.length;
+      const nextMarket = marketList[nextIdx];
+      const cfg = marketConfigs[nextMarket];
+      const now = new Date();
+      
+      // Convert UTC to market local time for next market
+      const dstOffset = getDstOffset(nextMarket, now);
+      const marketOffset = cfg.timezone + dstOffset;
+      const marketLocal = new Date(now.getTime() + marketOffset * 60 * 60 * 1000);
+      const timeString = `${pad(marketLocal.getUTCHours())}:${pad(marketLocal.getUTCMinutes())}`;
+      
+      // Update the back face with next market info
+      updateClockContent('clock-back', nextMarket, timeString);
+      
+      // Start flip animation
+      flipper.classList.add('flipping');
+      
+      // After animation completes, swap the faces and reset
+      setTimeout(() => {
+        clockIdx = nextIdx;
+        
+        // Swap front and back content
+        const frontContent = document.getElementById('clock-front').innerHTML;
+        const backContent = document.getElementById('clock-back').innerHTML;
+        document.getElementById('clock-front').innerHTML = backContent;
+        document.getElementById('clock-back').innerHTML = frontContent;
+        
+        // Reset flip
+        flipper.classList.remove('flipping');
+        isFlipping = false;
+      }, 600); // Match CSS transition duration
+    }
+    
+    setInterval(flipClock, 4000);
     setInterval(() => {
       renderSessions();
       renderClock();
