@@ -324,67 +324,80 @@
     
     function getNextOpenTime(now, market) {
       const cfg = marketConfigs[market];
-      let nextOpen = new Date(now);
       
       // Get UK time
       const ukTime = new Date(now.getTime() + (isDST(now) ? 1 : 0) * 60 * 60 * 1000);
       const ukHour = ukTime.getUTCHours();
       const ukDay = ukTime.getUTCDay();
       
-      // If it's during the week and before market open time, and not a holiday
-      if (ukDay >= 1 && ukDay <= 5 && ukHour < cfg.start) {
-        nextOpen.setUTCHours(cfg.start, 0, 0, 0);
-        const nextOpenUTC = new Date(nextOpen.getTime() - (isDST(nextOpen) ? 1 : 0) * 60 * 60 * 1000);
-        
-        // Check if it's a holiday
-        if (!isHoliday(nextOpenUTC, market)) {
-          return nextOpenUTC;
-        }
-      }
+      // Start from tomorrow and find the next valid opening
+      let testDate = new Date(ukTime);
+      testDate.setUTCDate(testDate.getUTCDate() + 1);
+      testDate.setUTCHours(0, 0, 0, 0);
       
-      // Find next non-holiday opening time
-      let daysToAdd = 0;
-      do {
+      let attempts = 0;
+      while (attempts < 14) { // Max 2 weeks to find next opening
+        const testDay = testDate.getUTCDay();
+        let openHour;
+        let isValidDay = false;
+        
         if (market === 'Sydney') {
           // Sydney opens Sunday 22:00 UK time
-          const daysUntilSunday = (7 - ukDay + daysToAdd) % 7;
-          if (daysUntilSunday === 0 && ukHour >= 22 && daysToAdd === 0) {
-            daysToAdd = 7;
-          } else if (daysUntilSunday === 0) {
-            daysToAdd = 0;
-          } else {
-            daysToAdd = daysUntilSunday;
+          if (testDay === 0) { // Sunday
+            openHour = 22;
+            isValidDay = true;
           }
-          nextOpen = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-          nextOpen.setUTCHours(22 - (isDST(nextOpen) ? 1 : 0), 0, 0, 0);
-        } else {
-          // Other markets open Monday morning
-          const daysUntilMonday = (8 - ukDay + daysToAdd) % 7;
-          if (daysUntilMonday === 0) daysToAdd += 7;
-          else daysToAdd = daysUntilMonday;
-          
-          nextOpen = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-          nextOpen.setUTCHours(cfg.start - (isDST(nextOpen) ? 1 : 0), 0, 0, 0);
+        } else if (market === 'Tokyo') {
+          // Tokyo opens Monday 00:00 UK time  
+          if (testDay === 1) { // Monday
+            openHour = 0;
+            isValidDay = true;
+          }
+        } else if (market === 'London') {
+          // London opens Monday 08:00 UK time
+          if (testDay === 1) { // Monday
+            openHour = 8;
+            isValidDay = true;
+          }
+        } else if (market === 'New York') {
+          // New York opens Monday 13:00 UK time
+          if (testDay === 1) { // Monday
+            openHour = 13;
+            isValidDay = true;
+          }
         }
         
-        // If it's a holiday, try the next day
-        if (isHoliday(nextOpen, market)) {
-          daysToAdd++;
-          ukDay = (ukDay + 1) % 7; // Update for next iteration
+        if (isValidDay) {
+          testDate.setUTCHours(openHour, 0, 0, 0);
+          
+          // Convert back to UTC
+          const testUTC = new Date(testDate.getTime() - (isDST(testDate) ? 1 : 0) * 60 * 60 * 1000);
+          
+          // Check if it's a holiday
+          if (!isHoliday(testUTC, market)) {
+            return testUTC;
+          }
         }
-      } while (isHoliday(nextOpen, market));
+        
+        // Try next day
+        testDate.setUTCDate(testDate.getUTCDate() + 1);
+        testDate.setUTCHours(0, 0, 0, 0);
+        attempts++;
+      }
       
-      return nextOpen;
+      // Fallback - return next Monday at market open time
+      const fallback = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      fallback.setUTCHours(cfg.start, 0, 0, 0);
+      return fallback;
     }
 
     // Render sessions (updated to use robust logic)
     function renderSessions() {
       const now = new Date();
-      const nowUTC = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
       const container = document.getElementById('sessions');
       container.innerHTML = '';
       Object.keys(marketConfigs).forEach(market => {
-        const { open, status } = getMarketStatus(nowUTC, market);
+        const { open, status } = getMarketStatus(now, market);
         container.innerHTML += `
           <div class="session">
             <span class="session-dot${open ? ' open' : ''}"></span>
