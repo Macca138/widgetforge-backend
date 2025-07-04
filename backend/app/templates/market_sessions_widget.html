@@ -125,13 +125,91 @@
         start: 13, end: 22, timezone: -5, dst: { start: '03-09', end: '11-02', offset: 1 }
       }
     };
-    // Demo holiday calendar (expand as needed)
-    const holidays = {
-      'Sydney': ['2025-01-01', '2025-12-25', '2025-12-26'],
-      'Tokyo': ['2025-01-01', '2025-12-25'],
-      'London': ['2025-01-01', '2025-12-25', '2025-12-26'],
-      'New York': ['2025-01-01', '2025-07-04', '2025-12-25']
+    // Static holidays that don't change or are irregular
+    const staticHolidays = {
+      'Sydney': ['2025-01-26', '2025-04-25'], // Australia Day, ANZAC Day
+      'Tokyo': ['2025-02-11', '2025-02-23', '2025-04-29', '2025-05-03', '2025-05-04', '2025-05-05'], // National holidays
+      'London': ['2025-05-05', '2025-08-25'], // Early May Bank Holiday, Summer Bank Holiday
+      'New York': ['2025-02-17', '2025-05-26', '2025-06-19', '2025-10-13', '2025-11-11'] // Presidents Day, Memorial Day, Juneteenth, Columbus Day, Veterans Day
     };
+    
+    function calculateHolidays(year, market) {
+      const holidays = [...(staticHolidays[market] || [])];
+      
+      // Add algorithmic holidays
+      holidays.push(`${year}-01-01`); // New Year's Day
+      holidays.push(`${year}-12-25`); // Christmas Day
+      
+      if (market === 'Sydney' || market === 'London') {
+        holidays.push(`${year}-12-26`); // Boxing Day
+      }
+      
+      if (market === 'New York') {
+        holidays.push(`${year}-07-04`); // Independence Day
+        
+        // Thanksgiving (4th Thursday of November)
+        const thanksgiving = new Date(year, 10, 1); // November 1st
+        thanksgiving.setDate(1 + (4 - thanksgiving.getDay() + 7) % 7 + 21); // 4th Thursday
+        holidays.push(`${year}-${pad(thanksgiving.getMonth() + 1)}-${pad(thanksgiving.getDate())}`);
+        
+        // Day after Thanksgiving
+        const dayAfter = new Date(thanksgiving);
+        dayAfter.setDate(dayAfter.getDate() + 1);
+        holidays.push(`${year}-${pad(dayAfter.getMonth() + 1)}-${pad(dayAfter.getDate())}`);
+        
+        // Labor Day (1st Monday of September)
+        const laborDay = new Date(year, 8, 1); // September 1st
+        laborDay.setDate(1 + (1 - laborDay.getDay() + 7) % 7); // 1st Monday
+        holidays.push(`${year}-${pad(laborDay.getMonth() + 1)}-${pad(laborDay.getDate())}`);
+      }
+      
+      if (market === 'London') {
+        // Good Friday and Easter Monday (based on Easter calculation)
+        const easter = calculateEaster(year);
+        const goodFriday = new Date(easter);
+        goodFriday.setDate(easter.getDate() - 2);
+        holidays.push(`${year}-${pad(goodFriday.getMonth() + 1)}-${pad(goodFriday.getDate())}`);
+        
+        const easterMonday = new Date(easter);
+        easterMonday.setDate(easter.getDate() + 1);
+        holidays.push(`${year}-${pad(easterMonday.getMonth() + 1)}-${pad(easterMonday.getDate())}`);
+      }
+      
+      // Move holidays that fall on weekends to Monday (US/UK practice)
+      if (market === 'New York' || market === 'London') {
+        return holidays.map(holiday => {
+          const date = new Date(holiday + 'T12:00:00');
+          const day = date.getDay();
+          if (day === 0) { // Sunday
+            date.setDate(date.getDate() + 1); // Move to Monday
+          } else if (day === 6) { // Saturday
+            date.setDate(date.getDate() + 2); // Move to Monday
+          }
+          return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        });
+      }
+      
+      return holidays;
+    }
+    
+    function calculateEaster(year) {
+      // Algorithm to calculate Easter Sunday
+      const a = year % 19;
+      const b = Math.floor(year / 100);
+      const c = year % 100;
+      const d = Math.floor(b / 4);
+      const e = b % 4;
+      const f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4);
+      const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const month = Math.floor((h + l - 7 * m + 114) / 31);
+      const day = ((h + l - 7 * m + 114) % 31) + 1;
+      return new Date(year, month - 1, day);
+    }
     function pad(n) { return n < 10 ? '0' + n : n; }
     function getDstOffset(market, date) {
       const cfg = marketConfigs[market];
@@ -159,7 +237,10 @@
       const m = pad(marketLocal.getUTCMonth() + 1);
       const d = pad(marketLocal.getUTCDate());
       const dateStr = `${y}-${m}-${d}`;
-      return holidays[market] && holidays[market].includes(dateStr);
+      
+      // Get holidays for this year
+      const yearHolidays = calculateHolidays(y, market);
+      return yearHolidays.includes(dateStr);
     }
     function getMarketStatus(now, market) {
       const cfg = marketConfigs[market];
