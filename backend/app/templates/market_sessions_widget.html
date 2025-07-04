@@ -109,7 +109,7 @@
       width: 100%;
     }
     .clock-flipper.flipping {
-      transform: rotateX(180deg);
+      transform: rotateX(-180deg);
     }
     .clock-face {
       position: relative;
@@ -119,6 +119,7 @@
     }
     .clock-face.front {
       z-index: 2;
+      transform: rotateX(0deg);
     }
     .clock-face.back {
       position: absolute;
@@ -463,6 +464,8 @@
     }
     
     function renderClock() {
+      if (isFlipping) return; // Don't update during flip animation
+      
       const market = marketList[clockIdx];
       const cfg = marketConfigs[market];
       const now = new Date();
