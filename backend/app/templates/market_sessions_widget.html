@@ -110,7 +110,6 @@
     </div>
   </div>
   <script>
-    // --- BEGIN: Robust Market Session Logic (ported from original script) ---
     // Market configs with DST
     const marketConfigs = {
       Sydney: {
@@ -149,33 +148,40 @@
       }
       return 0;
     }
-    function getMarketLocalDate(date, market) {
+    function getMarketLocalTime(utcDate, market) {
       const cfg = marketConfigs[market];
-      const offset = cfg.timezone + getDstOffset(market, date);
-      const d = new Date(date.getTime());
-      d.setMinutes(d.getMinutes() + offset * 60);
-      return d;
+      const offset = cfg.timezone + getDstOffset(market, utcDate);
+      const localTime = new Date(utcDate.getTime() + offset * 60 * 60 * 1000);
+      return {
+        time: localTime,
+        offset: offset
+      };
     }
-    function isWeekend(date, market) {
-      const local = getMarketLocalDate(date, market);
+    function getUTCFromLocal(localDate, market, offset) {
+      return new Date(localDate.getTime() - offset * 60 * 60 * 1000);
+    }
+    function isWeekend(utcDate, market) {
+      const { time: local } = getMarketLocalTime(utcDate, market);
       const day = local.getUTCDay();
       // Sydney: special case for Sunday evening open
       if (market === 'Sydney' && day === 0) {
         const hour = local.getUTCHours();
-        return hour < 8;
+        return hour < 22; // Market opens at 22:00 on Sunday
       }
-      return day === 0 || day === 6;
+      // Saturday or early Sunday
+      return day === 6 || (day === 0 && market !== 'Sydney');
     }
-    function isHoliday(date, market) {
-      const local = getMarketLocalDate(date, market);
+    function isHoliday(utcDate, market) {
+      const { time: local } = getMarketLocalTime(utcDate, market);
       const y = local.getUTCFullYear();
       const m = pad(local.getUTCMonth() + 1);
       const d = pad(local.getUTCDate());
       const dateStr = `${y}-${m}-${d}`;
       return holidays[market] && holidays[market].includes(dateStr);
     }
-    function getNextValidTradingDay(date, market) {
-      let d = new Date(date.getTime());
+    function getNextValidTradingDay(utcDate, market) {
+      let d = new Date(utcDate.getTime());
+      d.setUTCHours(12, 0, 0, 0); // Set to midday to avoid edge cases
       while (isWeekend(d, market) || isHoliday(d, market)) {
         d.setUTCDate(d.getUTCDate() + 1);
       }
@@ -183,163 +189,105 @@
     }
     function getMarketStatus(now, market) {
       const cfg = marketConfigs[market];
-      const hours = { start: cfg.start, end: cfg.end };
-      // Weekend/holiday check
+      const { time: localNow, offset } = getMarketLocalTime(now, market);
+      
+      // Check if weekend or holiday
       if (isWeekend(now, market)) {
-        const nextOpen = getNextValidTradingDay(now, market);
-        nextOpen.setUTCHours(cfg.start, 0, 0, 0);
-        const diffMs = nextOpen - now;
+        const nextTradingDay = getNextValidTradingDay(now, market);
+        const { time: nextLocal } = getMarketLocalTime(nextTradingDay, market);
+        nextLocal.setUTCHours(cfg.start, 0, 0, 0);
+        const nextOpenUTC = getUTCFromLocal(nextLocal, market, offset);
+        const diffMs = nextOpenUTC - now;
         const diffH = Math.floor(diffMs / (1000 * 60 * 60));
         const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         return { open: false, status: `Weekend - Opens in ${diffH}h ${pad(diffM)}m` };
       }
+      
       if (isHoliday(now, market)) {
-        const nextOpen = getNextValidTradingDay(now, market);
-        nextOpen.setUTCHours(cfg.start, 0, 0, 0);
-        const diffMs = nextOpen - now;
-        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        return { open: false, status: `Holiday - Opens in ${diffH}h ${pad(diffM)}m` };
-      }
-      // Session open/close check (in UTC)
-      const utcHour = now.getUTCHours();
-      let isOpen;
-      if (hours.start > hours.end) {
-        isOpen = (utcHour >= hours.start || utcHour < hours.end);
-      } else {
-        isOpen = (utcHour >= hours.start && utcHour < hours.end);
-      }
-      if (isOpen) {
-        // Time until close
-        let close = new Date(now);
-        if (hours.end > utcHour) {
-          close.setUTCHours(hours.end, 0, 0, 0);
-        } else {
-          close.setUTCDate(close.getUTCDate() + 1);
-          close.setUTCHours(hours.end, 0, 0, 0);
-        }
-        const diffMs = close - now;
-        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
-      } else {
-        // Find next valid open
-        let nextOpen = new Date(now);
-        if (hours.start > utcHour) {
-          nextOpen.setUTCHours(hours.start, 0, 0, 0);
-        } else {
-          nextOpen.setUTCDate(nextOpen.getUTCDate() + 1);
-          nextOpen.setUTCHours(hours.start, 0, 0, 0);
-        }
-        nextOpen = getNextValidTradingDay(nextOpen, market);
-        nextOpen.setUTCHours(hours.start, 0, 0, 0);
-        const diffMs = nextOpen - now;
-        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        return { open: false, status: `Opens in ${diffH}h ${pad(diffM)}m` };
-      }
-    }
-    // --- END: Robust Market Session Logic ---
-
-    // --- BEGIN: Improved Market Session Logic ---
-    function getMarketLocalDate(date, market) {
-      const cfg = marketConfigs[market];
-      const offset = cfg.timezone + getDstOffset(market, date);
-      const d = new Date(date.getTime());
-      d.setMinutes(d.getMinutes() + offset * 60);
-      return d;
-    }
-    function isWeekendLocal(local, market) {
-      const day = local.getUTCDay();
-      // Sydney: special case for Sunday evening open
-      if (market === 'Sydney' && day === 0) {
-        const hour = local.getUTCHours();
-        return hour < 8;
-      }
-      return day === 0 || day === 6;
-    }
-    function isHolidayLocal(local, market) {
-      const y = local.getUTCFullYear();
-      const m = pad(local.getUTCMonth() + 1);
-      const d = pad(local.getUTCDate());
-      const dateStr = `${y}-${m}-${d}`;
-      return holidays[market] && holidays[market].includes(dateStr);
-    }
-    function getNextValidTradingDayLocal(local, market) {
-      let d = new Date(local.getTime());
-      while (isWeekendLocal(d, market) || isHolidayLocal(d, market)) {
-        d.setUTCDate(d.getUTCDate() + 1);
-        d.setUTCHours(0,0,0,0);
-      }
-      return d;
-    }
-    function getMarketStatus(now, market) {
-      const cfg = marketConfigs[market];
-      const hours = { start: cfg.start, end: cfg.end };
-      const local = getMarketLocalDate(now, market);
-      // Weekend/holiday check
-      if (isWeekendLocal(local, market)) {
-        let nextOpen = getNextValidTradingDayLocal(local, market);
-        nextOpen.setUTCHours(hours.start, 0, 0, 0);
-        // Convert nextOpen back to UTC for diff
-        const nextOpenUTC = new Date(nextOpen.getTime() - ((cfg.timezone + getDstOffset(market, nextOpen)) * 60 * 60 * 1000));
-        const diffMs = nextOpenUTC - now;
-        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        return { open: false, status: `Weekend - Opens in ${diffH}h ${pad(diffM)}m` };
-      }
-      if (isHolidayLocal(local, market)) {
-        let nextOpen = getNextValidTradingDayLocal(local, market);
-        nextOpen.setUTCHours(hours.start, 0, 0, 0);
-        const nextOpenUTC = new Date(nextOpen.getTime() - ((cfg.timezone + getDstOffset(market, nextOpen)) * 60 * 60 * 1000));
+        const nextTradingDay = getNextValidTradingDay(now, market);
+        const { time: nextLocal } = getMarketLocalTime(nextTradingDay, market);
+        nextLocal.setUTCHours(cfg.start, 0, 0, 0);
+        const nextOpenUTC = getUTCFromLocal(nextLocal, market, offset);
         const diffMs = nextOpenUTC - now;
         const diffH = Math.floor(diffMs / (1000 * 60 * 60));
         const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         return { open: false, status: `Holiday - Opens in ${diffH}h ${pad(diffM)}m` };
       }
-      // Session open/close check (in local time)
-      const hour = local.getUTCHours();
+      
+      // Check if market is open
+      const localHour = localNow.getUTCHours();
       let isOpen;
-      if (hours.start > hours.end) {
-        // Cross-midnight session
-        isOpen = (hour >= hours.start || hour < hours.end);
+      
+      if (cfg.start > cfg.end) {
+        // Cross-midnight session (e.g., Sydney 22:00 - 7:00)
+        isOpen = (localHour >= cfg.start || localHour < cfg.end);
       } else {
-        isOpen = (hour >= hours.start && hour < hours.end);
+        // Regular session
+        isOpen = (localHour >= cfg.start && localHour < cfg.end);
       }
+      
       if (isOpen) {
-        // Time until close (in local time)
-        let close = new Date(local.getTime());
-        if (hours.end > hour) {
-          close.setUTCHours(hours.end, 0, 0, 0);
+        // Calculate time until close
+        let closeLocal = new Date(localNow);
+        if (cfg.start > cfg.end && localHour < cfg.end) {
+          // Already past midnight
+          closeLocal.setUTCHours(cfg.end, 0, 0, 0);
+        } else if (cfg.start > cfg.end && localHour >= cfg.start) {
+          // Before midnight, close is tomorrow
+          closeLocal.setUTCDate(closeLocal.getUTCDate() + 1);
+          closeLocal.setUTCHours(cfg.end, 0, 0, 0);
         } else {
-          close.setUTCDate(close.getUTCDate() + 1);
-          close.setUTCHours(hours.end, 0, 0, 0);
+          // Regular session
+          closeLocal.setUTCHours(cfg.end, 0, 0, 0);
         }
-        // Convert close back to UTC for diff
-        const closeUTC = new Date(close.getTime() - ((cfg.timezone + getDstOffset(market, close)) * 60 * 60 * 1000));
+        
+        const closeUTC = getUTCFromLocal(closeLocal, market, offset);
         const diffMs = closeUTC - now;
         const diffH = Math.floor(diffMs / (1000 * 60 * 60));
         const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
       } else {
-        // Find next valid open (in local time)
-        let nextOpen = new Date(local.getTime());
-        if (hours.start > hour) {
-          nextOpen.setUTCHours(hours.start, 0, 0, 0);
+        // Calculate time until open
+        let openLocal = new Date(localNow);
+        
+        if (cfg.start > cfg.end) {
+          // Cross-midnight session
+          if (localHour < cfg.start && localHour >= cfg.end) {
+            // Between end and start on the same day
+            openLocal.setUTCHours(cfg.start, 0, 0, 0);
+          } else {
+            // Past midnight but before end, next open is today evening
+            openLocal.setUTCHours(cfg.start, 0, 0, 0);
+            if (localHour < cfg.end) {
+              // We're in the early morning, market opens this evening
+              // No date change needed
+            }
+          }
         } else {
-          nextOpen.setUTCDate(nextOpen.getUTCDate() + 1);
-          nextOpen.setUTCHours(hours.start, 0, 0, 0);
+          // Regular session
+          if (localHour < cfg.start) {
+            openLocal.setUTCHours(cfg.start, 0, 0, 0);
+          } else {
+            openLocal.setUTCDate(openLocal.getUTCDate() + 1);
+            openLocal.setUTCHours(cfg.start, 0, 0, 0);
+          }
         }
-        nextOpen = getNextValidTradingDayLocal(nextOpen, market);
-        nextOpen.setUTCHours(hours.start, 0, 0, 0);
-        const nextOpenUTC = new Date(nextOpen.getTime() - ((cfg.timezone + getDstOffset(market, nextOpen)) * 60 * 60 * 1000));
-        const diffMs = nextOpenUTC - now;
+        
+        // Check if the next open falls on a weekend/holiday
+        let testDate = getUTCFromLocal(openLocal, market, offset);
+        if (isWeekend(testDate, market) || isHoliday(testDate, market)) {
+          const nextTradingDay = getNextValidTradingDay(testDate, market);
+          const { time: nextLocal } = getMarketLocalTime(nextTradingDay, market);
+          nextLocal.setUTCHours(cfg.start, 0, 0, 0);
+          testDate = getUTCFromLocal(nextLocal, market, offset);
+        }
+        
+        const diffMs = testDate - now;
         const diffH = Math.floor(diffMs / (1000 * 60 * 60));
         const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         return { open: false, status: `Opens in ${diffH}h ${pad(diffM)}m` };
       }
     }
-    // --- END: Improved Market Session Logic ---
 
     // Render sessions (updated to use robust logic)
     function renderSessions() {
@@ -358,18 +306,15 @@
         `;
       });
     }
-    // Rotating clock (unchanged)
+    // Rotating clock
     let clockIdx = 0;
     const marketList = Object.keys(marketConfigs);
     function renderClock() {
       const market = marketList[clockIdx];
-      const cfg = marketConfigs[market];
       const now = new Date();
-      const offset = cfg.timezone + getDstOffset(market, now);
-      const local = new Date(now.getTime());
-      local.setUTCHours(local.getUTCHours() + offset);
+      const { time: local } = getMarketLocalTime(now, market);
       document.getElementById('clock-label').textContent = market + ' Time';
-      document.getElementById('clock-time').textContent = `${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(local.getSeconds())}`;
+      document.getElementById('clock-time').textContent = `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`;
     }
     setInterval(() => {
       clockIdx = (clockIdx + 1) % marketList.length;
