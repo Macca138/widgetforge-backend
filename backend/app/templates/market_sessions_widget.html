@@ -148,99 +148,18 @@
       }
       return 0;
     }
-    function getMarketLocalTime(utcDate, market) {
-      const cfg = marketConfigs[market];
-      const offset = cfg.timezone + getDstOffset(market, utcDate);
-      const localTime = new Date(utcDate.getTime() + offset * 60 * 60 * 1000);
-      return {
-        time: localTime,
-        offset: offset
-      };
-    }
-    function getUTCFromLocal(localDate, market, offset) {
-      return new Date(localDate.getTime() - offset * 60 * 60 * 1000);
-    }
-    function isWeekend(utcDate, market) {
-      const { time: local } = getMarketLocalTime(utcDate, market);
-      const day = local.getUTCDay();
-      const hour = local.getUTCHours();
-      
-      if (market === 'Sydney') {
-        // Sydney: Closed from Friday 17:00 to Sunday 22:00
-        if (day === 6) return true; // All of Saturday
-        if (day === 5 && hour >= 17) return true; // Friday after 17:00
-        if (day === 0 && hour < 22) return true; // Sunday before 22:00
-        return false;
-      } else if (market === 'Tokyo') {
-        // Tokyo: Closed from Friday 17:00 to Monday 00:00
-        if (day === 6) return true; // All of Saturday
-        if (day === 0) return true; // All of Sunday
-        if (day === 5 && hour >= 17) return true; // Friday after 17:00
-        if (day === 1 && hour < 0) return true; // Monday before 00:00
-        return false;
-      } else if (market === 'London') {
-        // London: Closed from Friday 17:00 to Monday 08:00
-        if (day === 6) return true; // All of Saturday
-        if (day === 0) return true; // All of Sunday
-        if (day === 5 && hour >= 17) return true; // Friday after 17:00
-        if (day === 1 && hour < 8) return true; // Monday before 08:00
-        return false;
-      } else if (market === 'New York') {
-        // New York: Closed from Friday 22:00 to Monday 13:00
-        if (day === 6) return true; // All of Saturday
-        if (day === 0) return true; // All of Sunday
-        if (day === 5 && hour >= 22) return true; // Friday after 22:00
-        if (day === 1 && hour < 13) return true; // Monday before 13:00
-        return false;
-      }
-      
-      return false;
-    }
     function isHoliday(utcDate, market) {
-      const { time: local } = getMarketLocalTime(utcDate, market);
-      const y = local.getUTCFullYear();
-      const m = pad(local.getUTCMonth() + 1);
-      const d = pad(local.getUTCDate());
+      // Convert UTC to market local time for holiday checking
+      const cfg = marketConfigs[market];
+      const dstOffset = getDstOffset(market, utcDate);
+      const marketOffset = cfg.timezone + dstOffset;
+      const marketLocal = new Date(utcDate.getTime() + marketOffset * 60 * 60 * 1000);
+      
+      const y = marketLocal.getUTCFullYear();
+      const m = pad(marketLocal.getUTCMonth() + 1);
+      const d = pad(marketLocal.getUTCDate());
       const dateStr = `${y}-${m}-${d}`;
       return holidays[market] && holidays[market].includes(dateStr);
-    }
-    function getNextValidTradingDay(utcDate, market) {
-      let d = new Date(utcDate.getTime());
-      const { time: local } = getMarketLocalTime(d, market);
-      
-      // Set the time to the market opening time
-      if (market === 'Sydney') {
-        // Sydney opens Sunday 22:00
-        while (local.getUTCDay() !== 0) {
-          d.setUTCDate(d.getUTCDate() + 1);
-          local.setUTCDate(local.getUTCDate() + 1);
-        }
-      } else if (market === 'Tokyo') {
-        // Tokyo opens Monday 00:00
-        while (local.getUTCDay() !== 1) {
-          d.setUTCDate(d.getUTCDate() + 1);
-          local.setUTCDate(local.getUTCDate() + 1);
-        }
-      } else if (market === 'London') {
-        // London opens Monday 08:00
-        while (local.getUTCDay() !== 1) {
-          d.setUTCDate(d.getUTCDate() + 1);
-          local.setUTCDate(local.getUTCDate() + 1);
-        }
-      } else if (market === 'New York') {
-        // New York opens Monday 13:00
-        while (local.getUTCDay() !== 1) {
-          d.setUTCDate(d.getUTCDate() + 1);
-          local.setUTCDate(local.getUTCDate() + 1);
-        }
-      }
-      
-      // Skip holidays
-      while (isHoliday(d, market)) {
-        d.setUTCDate(d.getUTCDate() + 1);
-      }
-      
-      return d;
     }
     function getMarketStatus(now, market) {
       const cfg = marketConfigs[market];
@@ -331,30 +250,50 @@
       const ukHour = ukTime.getUTCHours();
       const ukDay = ukTime.getUTCDay();
       
-      // If it's during the week and before market open time
+      // If it's during the week and before market open time, and not a holiday
       if (ukDay >= 1 && ukDay <= 5 && ukHour < cfg.start) {
         nextOpen.setUTCHours(cfg.start, 0, 0, 0);
-        return new Date(nextOpen.getTime() - (isDST(nextOpen) ? 1 : 0) * 60 * 60 * 1000);
+        const nextOpenUTC = new Date(nextOpen.getTime() - (isDST(nextOpen) ? 1 : 0) * 60 * 60 * 1000);
+        
+        // Check if it's a holiday
+        if (!isHoliday(nextOpenUTC, market)) {
+          return nextOpenUTC;
+        }
       }
       
-      // Otherwise, find next Sunday 22:00 UK time (Sydney) or Monday start time
-      let daysUntilOpen;
-      if (market === 'Sydney') {
-        // Sydney opens Sunday 22:00 UK time
-        daysUntilOpen = (7 - ukDay) % 7;
-        if (daysUntilOpen === 0 && ukHour >= 22) daysUntilOpen = 7;
-        nextOpen.setUTCDate(nextOpen.getUTCDate() + daysUntilOpen);
-        nextOpen.setUTCHours(22, 0, 0, 0);
-      } else {
-        // Other markets open Monday morning
-        daysUntilOpen = (8 - ukDay) % 7;
-        if (daysUntilOpen === 0) daysUntilOpen = 7;
-        nextOpen.setUTCDate(nextOpen.getUTCDate() + daysUntilOpen);
-        nextOpen.setUTCHours(cfg.start, 0, 0, 0);
-      }
+      // Find next non-holiday opening time
+      let daysToAdd = 0;
+      do {
+        if (market === 'Sydney') {
+          // Sydney opens Sunday 22:00 UK time
+          const daysUntilSunday = (7 - ukDay + daysToAdd) % 7;
+          if (daysUntilSunday === 0 && ukHour >= 22 && daysToAdd === 0) {
+            daysToAdd = 7;
+          } else if (daysUntilSunday === 0) {
+            daysToAdd = 0;
+          } else {
+            daysToAdd = daysUntilSunday;
+          }
+          nextOpen = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+          nextOpen.setUTCHours(22 - (isDST(nextOpen) ? 1 : 0), 0, 0, 0);
+        } else {
+          // Other markets open Monday morning
+          const daysUntilMonday = (8 - ukDay + daysToAdd) % 7;
+          if (daysUntilMonday === 0) daysToAdd += 7;
+          else daysToAdd = daysUntilMonday;
+          
+          nextOpen = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+          nextOpen.setUTCHours(cfg.start - (isDST(nextOpen) ? 1 : 0), 0, 0, 0);
+        }
+        
+        // If it's a holiday, try the next day
+        if (isHoliday(nextOpen, market)) {
+          daysToAdd++;
+          ukDay = (ukDay + 1) % 7; // Update for next iteration
+        }
+      } while (isHoliday(nextOpen, market));
       
-      // Convert back to UTC
-      return new Date(nextOpen.getTime() - (isDST(nextOpen) ? 1 : 0) * 60 * 60 * 1000);
+      return nextOpen;
     }
 
     // Render sessions (updated to use robust logic)
@@ -379,10 +318,16 @@
     const marketList = Object.keys(marketConfigs);
     function renderClock() {
       const market = marketList[clockIdx];
+      const cfg = marketConfigs[market];
       const now = new Date();
-      const { time: local } = getMarketLocalTime(now, market);
+      
+      // Convert UTC to market local time
+      const dstOffset = getDstOffset(market, now);
+      const marketOffset = cfg.timezone + dstOffset;
+      const marketLocal = new Date(now.getTime() + marketOffset * 60 * 60 * 1000);
+      
       document.getElementById('clock-label').textContent = market + ' Time';
-      document.getElementById('clock-time').textContent = `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`;
+      document.getElementById('clock-time').textContent = `${pad(marketLocal.getUTCHours())}:${pad(marketLocal.getUTCMinutes())}:${pad(marketLocal.getUTCSeconds())}`;
     }
     setInterval(() => {
       clockIdx = (clockIdx + 1) % marketList.length;
