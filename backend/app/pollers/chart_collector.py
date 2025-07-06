@@ -115,8 +115,8 @@ class ChartDataCollector:
                         VALUES (?, ?, ?)
                     ''', (symbol, current_time, price))
                     
-                    # Clean up data older than 24 hours
-                    cutoff = current_time - (24 * 60 * 60)
+                    # Clean up data older than 48 hours (keep more history than we need)
+                    cutoff = current_time - (48 * 60 * 60)
                     cursor.execute('''
                         DELETE FROM price_history 
                         WHERE symbol = ? AND timestamp < ?
