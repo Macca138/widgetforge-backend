@@ -81,8 +81,8 @@ class ChartDataCollector:
                 
                 # Store close prices with timestamps
                 for rate in rates:
-                    timestamp = rate['time']
-                    price = rate['close']
+                    timestamp = int(rate['time'])  # Ensure timestamp is an integer
+                    price = float(rate['close'])   # Ensure price is a float
                     
                     cursor.execute('''
                         INSERT OR REPLACE INTO price_history (symbol, timestamp, price)
