@@ -197,14 +197,27 @@ async def refresh_account_data(login: str, x_api_key: str = Header(None)):
 @router.get("/api/mt5/chart-history/{symbol}")
 async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180):
     """Get historical chart data for a symbol"""
-    # Connect to the chart history database
-    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".cache"))
-    db_path = os.path.join(cache_dir, "chart_history.db")
-    
-    if not os.path.exists(db_path):
-        raise HTTPException(status_code=404, detail="Chart history database not found. Please ensure the chart collector is running.")
-    
     try:
+        # Connect to the chart history database
+        cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".cache"))
+        db_path = os.path.join(cache_dir, "chart_history.db")
+        
+        # Debug info
+        import logging
+        logging.info(f"Looking for database at: {db_path}")
+        logging.info(f"Database exists: {os.path.exists(db_path)}")
+        
+        if not os.path.exists(db_path):
+            # Try alternative path
+            alt_cache_dir = os.path.join(os.getcwd(), ".cache")
+            alt_db_path = os.path.join(alt_cache_dir, "chart_history.db")
+            logging.info(f"Trying alternative path: {alt_db_path}")
+            
+            if os.path.exists(alt_db_path):
+                db_path = alt_db_path
+            else:
+                raise HTTPException(status_code=404, detail=f"Chart history database not found. Searched: {db_path} and {alt_db_path}")
+        
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -243,4 +256,6 @@ async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180)
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        import traceback
+        error_details = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)} | {error_details}")
