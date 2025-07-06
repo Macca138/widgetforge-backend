@@ -122,20 +122,21 @@ class ChartDataCollector:
         conn.close()
     
     def cleanup_old_data(self):
-        """Clean up data older than 48 hours"""
+        """Clean up data older than 25 hours (keep 24+ hours available)"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         current_time = int(time.time())
-        cutoff = current_time - (48 * 60 * 60)
+        cutoff = current_time - (25 * 60 * 60)  # Keep 25 hours, delete older
         
-        cursor.execute('''
+        result = cursor.execute('''
             DELETE FROM price_history 
             WHERE timestamp < ?
         ''', (cutoff,))
         
+        deleted_count = result.rowcount
         conn.commit()
         conn.close()
-        logger.info("Cleaned up old data")
+        logger.info(f"Cleaned up {deleted_count} old data points (older than 25 hours)")
     
     def get_chart_data(self, symbol, hours=24, max_points=180):
         """Get resampled chart data for a symbol"""
@@ -182,9 +183,9 @@ class ChartDataCollector:
                     self.update_prices()
                     logger.info(f"Updated prices for {len(self.symbols)} symbols")
                     
-                    # Run cleanup every 10 updates (roughly every hour)
+                    # Run cleanup every 7 updates (roughly every hour)
                     cleanup_counter += 1
-                    if cleanup_counter >= 10:
+                    if cleanup_counter >= 7:
                         self.cleanup_old_data()
                         cleanup_counter = 0
                     
