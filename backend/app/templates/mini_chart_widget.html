@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Chart Widget</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: transparent;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            overflow: hidden;
+        }
+        
+        .chart-container {
+            width: {{ width }}px;
+            height: {{ height }}px;
+            background: {{ bg_color }};
+            border-radius: {{ border_radius }}px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .symbol-info {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        
+        .symbol {
+            font-size: 14px;
+            font-weight: 600;
+            color: {{ text_color }};
+        }
+        
+        .price {
+            font-size: 16px;
+            font-weight: 700;
+            color: {{ text_color }};
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .change {
+            font-size: 12px;
+            font-weight: 500;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .change.positive {
+            color: {{ up_color }};
+            background: {{ up_color }}22;
+        }
+        
+        .change.negative {
+            color: {{ down_color }};
+            background: {{ down_color }}22;
+        }
+        
+        .change.neutral {
+            color: {{ neutral_color }};
+            background: {{ neutral_color }}22;
+        }
+        
+        .chart-canvas {
+            flex: 1;
+            width: 100%;
+            border-radius: 4px;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: {{ text_color }}66;
+            font-size: 12px;
+        }
+        
+        .error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: {{ down_color }};
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chart-container">
+        <div class="chart-header">
+            <div class="symbol-info">
+                <span class="symbol">{{ symbol }}</span>
+                <span class="price" id="currentPrice">--.----</span>
+            </div>
+            <span class="change neutral" id="changePercent">0.00%</span>
+        </div>
+        <canvas class="chart-canvas" id="chartCanvas"></canvas>
+        <div class="loading" id="loadingMessage">Loading chart data...</div>
+        <div class="error" id="errorMessage" style="display: none;"></div>
+    </div>
+    
+    <script>
+        const config = {
+            symbol: '{{ symbol }}',
+            hours: {{ hours }},
+            maxPoints: {{ max_points }},
+            updateInterval: {{ update_interval }},
+            lineColor: '{{ line_color }}',
+            fillColor: '{{ fill_color }}',
+            upColor: '{{ up_color }}',
+            downColor: '{{ down_color }}',
+            neutralColor: '{{ neutral_color }}',
+            gridColor: '{{ grid_color }}',
+            showGrid: {{ show_grid|lower }},
+            apiUrl: '/api/mt5/chart-history'
+        };
+        
+        class MiniChart {
+            constructor() {
+                this.canvas = document.getElementById('chartCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.data = [];
+                this.prices = [];
+                this.isLoading = true;
+                
+                this.setupCanvas();
+                this.fetchData();
+                
+                // Update every X seconds
+                setInterval(() => this.fetchData(), config.updateInterval * 1000);
+                
+                // Handle resize
+                window.addEventListener('resize', () => this.setupCanvas());
+            }
+            
+            setupCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width * window.devicePixelRatio;
+                this.canvas.height = rect.height * window.devicePixelRatio;
+                this.canvas.style.width = rect.width + 'px';
+                this.canvas.style.height = rect.height + 'px';
+                this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                
+                if (!this.isLoading && this.data.length > 0) {
+                    this.draw();
+                }
+            }
+            
+            async fetchData() {
+                try {
+                    const response = await fetch(`${config.apiUrl}/${config.symbol}?hours=${config.hours}&max_points=${config.maxPoints}`);
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.detail || 'Failed to fetch data');
+                    }
+                    
+                    if (result.data && result.data.length > 0) {
+                        this.data = result.data;
+                        this.prices = this.data.map(d => d.price);
+                        this.updateUI(result);
+                        
+                        if (this.isLoading) {
+                            this.isLoading = false;
+                            document.getElementById('loadingMessage').style.display = 'none';
+                            this.canvas.style.display = 'block';
+                        }
+                        
+                        this.draw();
+                    }
+                } catch (error) {
+                    console.error('Error fetching chart data:', error);
+                    if (this.isLoading) {
+                        document.getElementById('loadingMessage').style.display = 'none';
+                        document.getElementById('errorMessage').style.display = 'flex';
+                        document.getElementById('errorMessage').textContent = error.message;
+                    }
+                }
+            }
+            
+            updateUI(result) {
+                const lastPrice = result.last_price;
+                const firstPrice = result.first_price;
+                const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
+                
+                // Update price
+                document.getElementById('currentPrice').textContent = lastPrice.toFixed(this.getDecimals());
+                
+                // Update change
+                const changeElement = document.getElementById('changePercent');
+                const arrow = changePercent > 0 ? '▲' : changePercent < 0 ? '▼' : '';
+                changeElement.textContent = `${arrow}${Math.abs(changePercent).toFixed(2)}%`;
+                changeElement.className = `change ${changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral'}`;
+            }
+            
+            getDecimals() {
+                const symbol = config.symbol;
+                if (symbol.includes('JPY')) return 3;
+                if (symbol.includes('XAU') || symbol.includes('XAG')) return 2;
+                return 5;
+            }
+            
+            draw() {
+                const ctx = this.ctx;
+                const width = this.canvas.width / window.devicePixelRatio;
+                const height = this.canvas.height / window.devicePixelRatio;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                if (this.prices.length < 2) return;
+                
+                // Calculate bounds
+                const minPrice = Math.min(...this.prices);
+                const maxPrice = Math.max(...this.prices);
+                const priceRange = maxPrice - minPrice;
+                const padding = priceRange * 0.1;
+                
+                const yMin = minPrice - padding;
+                const yMax = maxPrice + padding;
+                const yRange = yMax - yMin;
+                
+                // Draw grid
+                if (config.showGrid) {
+                    ctx.strokeStyle = config.gridColor;
+                    ctx.lineWidth = 0.5;
+                    ctx.setLineDash([2, 2]);
+                    
+                    // Horizontal lines
+                    for (let i = 0; i <= 4; i++) {
+                        const y = (height / 4) * i;
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(width, y);
+                        ctx.stroke();
+                    }
+                    
+                    ctx.setLineDash([]);
+                }
+                
+                // Determine line color based on trend
+                const firstPrice = this.prices[0];
+                const lastPrice = this.prices[this.prices.length - 1];
+                const lineColor = lastPrice >= firstPrice ? config.upColor : config.downColor;
+                
+                // Draw filled area
+                ctx.beginPath();
+                ctx.moveTo(0, height);
+                
+                this.prices.forEach((price, i) => {
+                    const x = (i / (this.prices.length - 1)) * width;
+                    const y = height - ((price - yMin) / yRange) * height;
+                    
+                    if (i === 0) {
+                        ctx.lineTo(0, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                ctx.lineTo(width, height);
+                ctx.closePath();
+                
+                // Create gradient fill
+                const gradient = ctx.createLinearGradient(0, 0, 0, height);
+                gradient.addColorStop(0, lineColor + '40');
+                gradient.addColorStop(1, lineColor + '05');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Draw line
+                ctx.beginPath();
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 2;
+                
+                this.prices.forEach((price, i) => {
+                    const x = (i / (this.prices.length - 1)) * width;
+                    const y = height - ((price - yMin) / yRange) * height;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                ctx.stroke();
+                
+                // Draw current price dot
+                const lastX = width;
+                const lastY = height - ((lastPrice - yMin) / yRange) * height;
+                
+                ctx.beginPath();
+                ctx.arc(lastX - 3, lastY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = lineColor;
+                ctx.fill();
+            }
+        }
+        
+        // Initialize chart when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new MiniChart();
+        });
+    </script>
+</body>
+</html>

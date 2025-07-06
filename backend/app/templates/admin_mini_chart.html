@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Chart Widget Builder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+            font-size: 28px;
+            color: #fff;
+        }
+        
+        .builder-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+        }
+        
+        .controls {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            height: fit-content;
+        }
+        
+        .preview-area {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        input[type="color"] {
+            height: 40px;
+            cursor: pointer;
+        }
+        
+        input[type="range"] {
+            margin-top: 5px;
+        }
+        
+        .range-value {
+            text-align: right;
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 25px 0 15px 0;
+            color: #fff;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+        
+        .section-title:first-child {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        
+        .preview-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .preview-controls h2 {
+            font-size: 20px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0052cc;
+        }
+        
+        button.secondary {
+            background: #333;
+        }
+        
+        button.secondary:hover {
+            background: #444;
+        }
+        
+        .preview-frame {
+            flex: 1;
+            background: #000;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #previewIframe {
+            border: none;
+            background: transparent;
+        }
+        
+        .url-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            color: #66ff66;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-group input {
+            width: auto;
+        }
+        
+        .status-message {
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #1a4d1a;
+            color: #66ff66;
+            display: block;
+        }
+        
+        .status-message.error {
+            background: #4d1a1a;
+            color: #ff6666;
+            display: block;
+        }
+        
+        .asset-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .asset-selector select {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mini Chart Widget Builder</h1>
+        
+        <div class="builder-layout">
+            <div class="controls">
+                <div class="section-title">Chart Configuration</div>
+                
+                <div class="form-group">
+                    <label>Symbol</label>
+                    <div class="asset-selector">
+                        <select id="symbol" onchange="updatePreview()">
+                            <option value="">Loading symbols...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Time Period (hours)</label>
+                    <input type="number" id="hours" value="24" min="1" max="168" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Max Data Points</label>
+                    <input type="number" id="maxPoints" value="180" min="50" max="500" onchange="updatePreview()">
+                    <div class="range-value">Affects chart smoothness and performance</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Update Interval (seconds)</label>
+                    <input type="number" id="updateInterval" value="60" min="10" max="300" onchange="updatePreview()">
+                </div>
+                
+                <div class="section-title">Dimensions</div>
+                
+                <div class="form-group">
+                    <label>Width (px)</label>
+                    <input type="number" id="width" value="300" min="200" max="800" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Height (px)</label>
+                    <input type="number" id="height" value="150" min="100" max="400" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Border Radius (px)</label>
+                    <input type="range" id="borderRadius" value="8" min="0" max="20" onchange="updatePreview()">
+                    <div class="range-value" id="borderRadiusValue">8px</div>
+                </div>
+                
+                <div class="section-title">Colors</div>
+                
+                <div class="form-group">
+                    <label>Background Color</label>
+                    <input type="color" id="bgColor" value="#000000" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Text Color</label>
+                    <input type="color" id="textColor" value="#ffffff" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Up Color</label>
+                    <input type="color" id="upColor" value="#00ff88" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Down Color</label>
+                    <input type="color" id="downColor" value="#ff4444" onchange="updatePreview()">
+                </div>
+                
+                <div class="form-group">
+                    <label>Grid Color</label>
+                    <input type="color" id="gridColor" value="#333333" onchange="updatePreview()">
+                </div>
+                
+                <div class="section-title">Features</div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showGrid" checked onchange="updatePreview()">
+                        <label for="showGrid">Show Grid Lines</label>
+                    </div>
+                </div>
+                
+                <div class="status-message" id="statusMessage"></div>
+            </div>
+            
+            <div class="preview-area">
+                <div class="preview-controls">
+                    <h2>Preview</h2>
+                    <div class="button-group">
+                        <button onclick="refreshPreview()">Refresh</button>
+                        <button onclick="copyUrl()" class="secondary">Copy URL</button>
+                    </div>
+                </div>
+                
+                <div class="preview-frame">
+                    <iframe id="previewIframe" width="300" height="150"></iframe>
+                </div>
+                
+                <div class="url-display" id="urlDisplay"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load available symbols
+        async function loadSymbols() {
+            try {
+                const response = await fetch('/assets');
+                const html = await response.text();
+                document.getElementById('symbol').innerHTML = html;
+                document.getElementById('symbol').value = 'EURUSD';
+                updatePreview();
+            } catch (error) {
+                console.error('Failed to load symbols:', error);
+            }
+        }
+        
+        // Update preview iframe
+        function updatePreview() {
+            const params = {
+                symbol: document.getElementById('symbol').value,
+                hours: document.getElementById('hours').value,
+                maxPoints: document.getElementById('maxPoints').value,
+                updateInterval: document.getElementById('updateInterval').value,
+                width: document.getElementById('width').value,
+                height: document.getElementById('height').value,
+                borderRadius: document.getElementById('borderRadius').value,
+                bgColor: encodeURIComponent(document.getElementById('bgColor').value + 'cc'),
+                textColor: encodeURIComponent(document.getElementById('textColor').value),
+                upColor: encodeURIComponent(document.getElementById('upColor').value),
+                downColor: encodeURIComponent(document.getElementById('downColor').value),
+                gridColor: encodeURIComponent(document.getElementById('gridColor').value + '20'),
+                showGrid: document.getElementById('showGrid').checked
+            };
+            
+            // Update range display
+            document.getElementById('borderRadiusValue').textContent = params.borderRadius + 'px';
+            
+            // Build URL
+            const queryString = Object.entries(params)
+                .map(([key, value]) => `${key}=${value}`)
+                .join('&');
+            
+            const url = `/widgets/mini-chart?${queryString}`;
+            
+            // Update iframe
+            const iframe = document.getElementById('previewIframe');
+            iframe.src = url;
+            iframe.width = params.width;
+            iframe.height = params.height;
+            
+            // Update URL display
+            const fullUrl = window.location.origin + url;
+            document.getElementById('urlDisplay').textContent = fullUrl;
+        }
+        
+        function refreshPreview() {
+            const iframe = document.getElementById('previewIframe');
+            iframe.src = iframe.src;
+        }
+        
+        function copyUrl() {
+            const url = document.getElementById('urlDisplay').textContent;
+            navigator.clipboard.writeText(url).then(() => {
+                showStatus('URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('Failed to copy URL', 'error');
+            });
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('statusMessage');
+            status.textContent = message;
+            status.className = `status-message ${type}`;
+            setTimeout(() => {
+                status.className = 'status-message';
+            }, 3000);
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSymbols();
+        });
+    </script>
+</body>
+</html>

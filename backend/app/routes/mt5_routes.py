@@ -8,6 +8,7 @@ from typing import List, Optional
 import json
 import os
 import base64
+import sqlite3
 from app.services.mt5_manager import mt5_manager
 from app.services.cache_service import get_account
 
@@ -192,3 +193,54 @@ async def refresh_account_data(login: str, x_api_key: str = Header(None)):
                 break
         
         raise HTTPException(status_code=500, detail=f"Failed to refresh data: {error_msg}")
+
+@router.get("/api/mt5/chart-history/{symbol}")
+async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180):
+    """Get historical chart data for a symbol"""
+    # Connect to the chart history database
+    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".cache"))
+    db_path = os.path.join(cache_dir, "chart_history.db")
+    
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Chart history database not found. Please ensure the chart collector is running.")
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Calculate cutoff timestamp
+        import time
+        cutoff = int(time.time()) - (hours * 60 * 60)
+        
+        # Query data
+        cursor.execute('''
+            SELECT timestamp, price 
+            FROM price_history 
+            WHERE symbol = ? AND timestamp > ?
+            ORDER BY timestamp
+        ''', (symbol, cutoff))
+        
+        data = cursor.fetchall()
+        conn.close()
+        
+        if not data:
+            return {"symbol": symbol, "data": [], "message": "No data available for this symbol"}
+        
+        # Resample if we have too many points
+        if len(data) > max_points:
+            step = len(data) // max_points
+            data = data[::step]
+        
+        # Format response
+        chart_data = [{"timestamp": ts, "price": price} for ts, price in data]
+        
+        return {
+            "symbol": symbol,
+            "data": chart_data,
+            "first_price": data[0][1] if data else None,
+            "last_price": data[-1][1] if data else None,
+            "point_count": len(chart_data)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

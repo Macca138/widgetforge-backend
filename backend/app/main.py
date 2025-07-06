@@ -391,6 +391,37 @@ async def market_sessions_widget(request: Request):
         "clock_color": params.get("clockColor", "#DDFD6C"),
     })
 
+@app.get("/widgets/mini-chart", response_class=HTMLResponse)
+async def mini_chart_widget(request: Request):
+    params = dict(request.query_params)
+    
+    return templates.TemplateResponse("mini_chart_widget.html", {
+        "request": request,
+        # Chart configuration
+        "symbol": params.get("symbol", "EURUSD"),
+        "hours": params.get("hours", "24"),
+        "max_points": params.get("maxPoints", "180"),
+        "update_interval": params.get("updateInterval", "60"),
+        
+        # Dimensions
+        "width": params.get("width", "300"),
+        "height": params.get("height", "150"),
+        "border_radius": params.get("borderRadius", "8"),
+        
+        # Colors
+        "bg_color": params.get("bgColor", "rgba(0, 0, 0, 0.8)"),
+        "text_color": params.get("textColor", "#ffffff"),
+        "line_color": params.get("lineColor", "#00ff88"),
+        "fill_color": params.get("fillColor", "#00ff88"),
+        "up_color": params.get("upColor", "#00ff88"),
+        "down_color": params.get("downColor", "#ff4444"),
+        "neutral_color": params.get("neutralColor", "#cccccc"),
+        "grid_color": params.get("gridColor", "rgba(255, 255, 255, 0.1)"),
+        
+        # Features
+        "show_grid": params.get("showGrid", "true"),
+    })
+
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -424,6 +455,12 @@ async def admin_mt5_terminal_manager(request: Request):
 @app.get("/admin/enhanced-account-builder", response_class=HTMLResponse)
 async def admin_enhanced_account_builder(request: Request):
     return templates.TemplateResponse("admin_enhanced_account_builder.html", {
+        "request": request
+    })
+
+@app.get("/admin/mini-chart-builder", response_class=HTMLResponse)
+async def admin_mini_chart_builder(request: Request):
+    return templates.TemplateResponse("admin_mini_chart.html", {
         "request": request
     })
 
