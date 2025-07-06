@@ -244,14 +244,26 @@ async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180)
             step = len(data) // max_points
             data = data[::step]
         
-        # Format response
-        chart_data = [{"timestamp": ts, "price": price} for ts, price in data]
+        # Format response with safe data conversion
+        chart_data = []
+        for ts, price in data:
+            try:
+                # Ensure timestamp and price are proper numbers
+                timestamp = int(ts) if isinstance(ts, (int, float)) else int(float(ts))
+                price_val = float(price) if isinstance(price, (int, float, str)) else 0.0
+                chart_data.append({"timestamp": timestamp, "price": price_val})
+            except (ValueError, TypeError) as e:
+                logging.warning(f"Skipping invalid data point: ts={ts}, price={price}, error={e}")
+                continue
+        
+        if not chart_data:
+            return {"symbol": symbol, "data": [], "message": "No valid data points found"}
         
         return {
             "symbol": symbol,
             "data": chart_data,
-            "first_price": data[0][1] if data else None,
-            "last_price": data[-1][1] if data else None,
+            "first_price": chart_data[0]["price"] if chart_data else None,
+            "last_price": chart_data[-1]["price"] if chart_data else None,
             "point_count": len(chart_data)
         }
         
