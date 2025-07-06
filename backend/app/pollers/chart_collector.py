@@ -115,18 +115,27 @@ class ChartDataCollector:
                         VALUES (?, ?, ?)
                     ''', (symbol, current_time, price))
                     
-                    # Clean up data older than 48 hours (keep more history than we need)
-                    cutoff = current_time - (48 * 60 * 60)
-                    cursor.execute('''
-                        DELETE FROM price_history 
-                        WHERE symbol = ? AND timestamp < ?
-                    ''', (symbol, cutoff))
-                    
             except Exception as e:
                 logger.error(f"Error updating {symbol}: {e}")
         
         conn.commit()
         conn.close()
+    
+    def cleanup_old_data(self):
+        """Clean up data older than 48 hours"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        current_time = int(time.time())
+        cutoff = current_time - (48 * 60 * 60)
+        
+        cursor.execute('''
+            DELETE FROM price_history 
+            WHERE timestamp < ?
+        ''', (cutoff,))
+        
+        conn.commit()
+        conn.close()
+        logger.info("Cleaned up old data")
     
     def get_chart_data(self, symbol, hours=24, max_points=180):
         """Get resampled chart data for a symbol"""
@@ -166,11 +175,19 @@ class ChartDataCollector:
             
             # Update loop - every 8 minutes for ~180 points per day
             update_interval = 8 * 60  # 8 minutes in seconds
+            cleanup_counter = 0
             
             while True:
                 try:
                     self.update_prices()
                     logger.info(f"Updated prices for {len(self.symbols)} symbols")
+                    
+                    # Run cleanup every 10 updates (roughly every hour)
+                    cleanup_counter += 1
+                    if cleanup_counter >= 10:
+                        self.cleanup_old_data()
+                        cleanup_counter = 0
+                    
                     time.sleep(update_interval)
                     
                 except Exception as e:
