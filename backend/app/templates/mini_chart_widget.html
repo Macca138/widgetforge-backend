@@ -24,11 +24,10 @@
             height: {{ height }}px;
             background: {{ bg_color }};
             border-radius: {{ border_radius }}px;
-            padding: 8px 8px 30px 8px; /* Extra bottom padding for timestamps */
+            padding: 8px;
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            position: relative;
         }
         
         .chart-header {
@@ -83,21 +82,6 @@
             flex: 1;
             width: 100%;
             border-radius: 4px;
-            position: relative;
-        }
-        
-        .timestamp-labels {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            height: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            color: {{ text_color }};
-            font-family: 'Inter', sans-serif;
         }
         
         .loading {
@@ -129,7 +113,6 @@
             <span class="change neutral" id="changePercent">0.00%</span>
         </div>
         <canvas class="chart-canvas" id="chartCanvas"></canvas>
-        <div class="timestamp-labels" id="timestampLabels"></div>
         <div class="loading" id="loadingMessage">Loading chart data...</div>
         <div class="error" id="errorMessage" style="display: none;"></div>
     </div>
@@ -206,7 +189,6 @@
                         }
                         
                         this.draw();
-                        this.updateTimestamps();
                     }
                 } catch (error) {
                     console.error('Error fetching chart data:', error);
@@ -259,12 +241,12 @@
                 
                 if (this.prices.length < 2) return;
                 
-                // Chart margins - simplified since timestamps are now HTML
+                // Chart margins - proper padding to prevent overflow
                 const margin = {
-                    top: 5,
-                    right: 5,
-                    bottom: 5,
-                    left: 5
+                    top: 8,
+                    right: 8,
+                    bottom: 8,
+                    left: 8
                 };
                 
                 const chartWidth = width - margin.left - margin.right;
@@ -360,44 +342,6 @@
                 ctx.fillStyle = lineColor;
                 ctx.fill();
                 
-                // Update HTML timestamp labels
-                this.updateTimestamps();
-            }
-            
-            updateTimestamps() {
-                if (!this.data || this.data.length < 2) return;
-                
-                const timestampContainer = document.getElementById('timestampLabels');
-                const dataLength = this.data.length;
-                const timeLabels = 4; // Show 5 time labels like TradingView (0,1,2,3,4)
-                
-                // Clear existing timestamps
-                timestampContainer.innerHTML = '';
-                
-                for (let i = 0; i <= timeLabels; i++) {
-                    const dataIndex = Math.floor((i / timeLabels) * (dataLength - 1));
-                    const timestamp = this.data[dataIndex].timestamp;
-                    
-                    // Format time like TradingView
-                    const date = new Date(timestamp * 1000);
-                    let timeText;
-                    
-                    if (i === 0) {
-                        // First label: just hour
-                        timeText = date.getHours().toString();
-                    } else {
-                        // Other labels: HH:mm format
-                        timeText = date.toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: false 
-                        });
-                    }
-                    
-                    const span = document.createElement('span');
-                    span.textContent = timeText;
-                    timestampContainer.appendChild(span);
-                }
             }
         }
         
