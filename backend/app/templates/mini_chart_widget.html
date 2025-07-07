@@ -231,6 +231,14 @@
                 return 5;
             }
             
+            // Add percentile helper
+            getPercentile(arr, percentile) {
+                if (!arr.length) return 0;
+                const sorted = [...arr].sort((a, b) => a - b);
+                const index = Math.floor(percentile * (sorted.length - 1));
+                return sorted[index];
+            }
+            
             draw() {
                 const ctx = this.ctx;
                 const width = this.canvas.width / window.devicePixelRatio;
@@ -252,9 +260,9 @@
                 const chartWidth = width - margin.left - margin.right;
                 const chartHeight = height - margin.top - margin.bottom;
                 
-                // Calculate bounds with better range handling
-                const minPrice = Math.min(...this.prices);
-                const maxPrice = Math.max(...this.prices);
+                // Use percentiles for bounds to avoid outliers
+                const minPrice = this.getPercentile(this.prices, 0.05); // 5th percentile
+                const maxPrice = this.getPercentile(this.prices, 0.95); // 95th percentile
                 const priceRange = maxPrice - minPrice;
                 
                 // Use minimum 20% padding or at least 0.01% of the price value
