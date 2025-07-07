@@ -375,49 +375,41 @@
       
       // Get UK time
       const ukTime = new Date(now.getTime() + (isDST(now) ? 1 : 0) * 60 * 60 * 1000);
-      const ukHour = ukTime.getUTCHours();
-      const ukDay = ukTime.getUTCDay();
       
-      // Start from tomorrow and find the next valid opening
+      // Start from current time and find next opening
       let testDate = new Date(ukTime);
-      testDate.setUTCDate(testDate.getUTCDate() + 1);
-      testDate.setUTCHours(0, 0, 0, 0);
       
-      let attempts = 0;
-      while (attempts < 14) { // Max 2 weeks to find next opening
+      // First check if market opens later today
+      let todayOpen = new Date(ukTime);
+      todayOpen.setUTCHours(cfg.start, 0, 0, 0);
+      
+      // If it's still today and market hasn't opened yet
+      if (todayOpen > ukTime && todayOpen.getUTCDay() >= 1 && todayOpen.getUTCDay() <= 5) {
+        const testUTC = new Date(todayOpen.getTime() - (isDST(todayOpen) ? 1 : 0) * 60 * 60 * 1000);
+        if (!isHoliday(testUTC, market)) {
+          return testUTC;
+        }
+      }
+      
+      // Find next Monday (or Sunday for Sydney)
+      let daysToAdd = 1;
+      while (daysToAdd <= 7) {
+        testDate = new Date(ukTime);
+        testDate.setUTCDate(testDate.getUTCDate() + daysToAdd);
+        testDate.setUTCHours(cfg.start, 0, 0, 0);
+        
         const testDay = testDate.getUTCDay();
-        let openHour;
         let isValidDay = false;
         
         if (market === 'Sydney') {
           // Sydney opens Sunday 22:00 UK time
-          if (testDay === 0) { // Sunday
-            openHour = 22;
-            isValidDay = true;
-          }
-        } else if (market === 'Tokyo') {
-          // Tokyo opens Monday 00:00 UK time  
-          if (testDay === 1) { // Monday
-            openHour = 0;
-            isValidDay = true;
-          }
-        } else if (market === 'London') {
-          // London opens Monday 08:00 UK time
-          if (testDay === 1) { // Monday
-            openHour = 8;
-            isValidDay = true;
-          }
-        } else if (market === 'New York') {
-          // New York opens Monday 13:00 UK time
-          if (testDay === 1) { // Monday
-            openHour = 13;
-            isValidDay = true;
-          }
+          isValidDay = (testDay === 0);
+        } else {
+          // All other markets open Monday-Friday
+          isValidDay = (testDay >= 1 && testDay <= 5);
         }
         
         if (isValidDay) {
-          testDate.setUTCHours(openHour, 0, 0, 0);
-          
           // Convert back to UTC
           const testUTC = new Date(testDate.getTime() - (isDST(testDate) ? 1 : 0) * 60 * 60 * 1000);
           
@@ -427,10 +419,7 @@
           }
         }
         
-        // Try next day
-        testDate.setUTCDate(testDate.getUTCDate() + 1);
-        testDate.setUTCHours(0, 0, 0, 0);
-        attempts++;
+        daysToAdd++;
       }
       
       // Fallback - return next Monday at market open time
