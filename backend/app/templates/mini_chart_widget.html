@@ -123,6 +123,7 @@
             hours: {{ hours }},
             maxPoints: {{ max_points }},
             updateInterval: {{ update_interval }},
+            smoothing: {{ smoothing }},
             lineColor: '{{ line_color }}',
             fillColor: '{{ fill_color }}',
             upColor: '{{ up_color }}',
@@ -169,7 +170,7 @@
             
             async fetchData() {
                 try {
-                    const response = await fetch(`${config.apiUrl}/${config.symbol}?hours=${config.hours}&max_points=${config.maxPoints}`);
+                    const response = await fetch(`${config.apiUrl}/${config.symbol}?hours=${config.hours}&max_points=${config.maxPoints}&smoothing=${config.smoothing}`);
                     const result = await response.json();
                     
                     if (!response.ok) {
