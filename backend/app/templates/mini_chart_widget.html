@@ -24,7 +24,7 @@
             height: {{ height }}px;
             background: {{ bg_color }};
             border-radius: {{ border_radius }}px;
-            /* padding: 8px; */
+            padding: 8px;
             display: flex;
             flex-direction: column;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -123,7 +123,6 @@
             hours: {{ hours }},
             maxPoints: {{ max_points }},
             updateInterval: {{ update_interval }},
-            smoothing: {{ smoothing }},
             lineColor: '{{ line_color }}',
             fillColor: '{{ fill_color }}',
             upColor: '{{ up_color }}',
@@ -170,7 +169,7 @@
             
             async fetchData() {
                 try {
-                    const response = await fetch(`${config.apiUrl}/${config.symbol}?hours=${config.hours}&max_points=${config.maxPoints}&smoothing=${config.smoothing}`);
+                    const response = await fetch(`${config.apiUrl}/${config.symbol}?hours=${config.hours}&max_points=${config.maxPoints}`);
                     const result = await response.json();
                     
                     if (!response.ok) {
@@ -231,14 +230,6 @@
                 return 5;
             }
             
-            // Add percentile helper
-            getPercentile(arr, percentile) {
-                if (!arr.length) return 0;
-                const sorted = [...arr].sort((a, b) => a - b);
-                const index = Math.floor(percentile * (sorted.length - 1));
-                return sorted[index];
-            }
-            
             draw() {
                 const ctx = this.ctx;
                 const width = this.canvas.width / window.devicePixelRatio;
@@ -249,26 +240,14 @@
                 
                 if (this.prices.length < 2) return;
                 
-                // Chart margins - proper padding to prevent overflow
-                const margin = {
-                    top: 8,
-                    right: 8,
-                    bottom: 8,
-                    left: 8
-                };
-                
-                const chartWidth = width - margin.left - margin.right;
-                const chartHeight = height - margin.top - margin.bottom;
-                
-                // Use percentiles for bounds to avoid outliers
-                const minPrice = this.getPercentile(this.prices, 0.05); // 5th percentile
-                const maxPrice = this.getPercentile(this.prices, 0.95); // 95th percentile
+                // Calculate bounds with better range handling
+                const minPrice = Math.min(...this.prices);
+                const maxPrice = Math.max(...this.prices);
                 const priceRange = maxPrice - minPrice;
                 
-                // Set a minimum absolute padding (for FX pairs, e.g., 0.0005)
-                const minAbsolutePadding = 0.0005;
-                const minPadding = Math.max(priceRange * 0.3, maxPrice * 0.0001, minAbsolutePadding);
-                const padding = minPadding;
+                // Use minimum 20% padding or at least 0.01% of the price value
+                const minPadding = Math.max(priceRange * 0.2, maxPrice * 0.0001);
+                const padding = Math.max(priceRange * 0.2, minPadding);
                 
                 const yMin = minPrice - padding;
                 const yMax = maxPrice + padding;
@@ -280,12 +259,12 @@
                     ctx.lineWidth = 0.5;
                     ctx.setLineDash([2, 2]);
                     
-                    // Horizontal lines within chart area
+                    // Horizontal lines
                     for (let i = 0; i <= 4; i++) {
-                        const y = margin.top + (chartHeight / 4) * i;
+                        const y = (height / 4) * i;
                         ctx.beginPath();
-                        ctx.moveTo(margin.left, y);
-                        ctx.lineTo(margin.left + chartWidth, y);
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(width, y);
                         ctx.stroke();
                     }
                     
@@ -297,41 +276,39 @@
                 const lastPrice = this.prices[this.prices.length - 1];
                 const lineColor = lastPrice >= firstPrice ? config.upColor : config.downColor;
                 
-                // Draw filled area within chart bounds
+                // Draw filled area
                 ctx.beginPath();
-                ctx.moveTo(margin.left, margin.top + chartHeight);
+                ctx.moveTo(0, height);
                 
                 this.prices.forEach((price, i) => {
-                    const x = margin.left + (i / (this.prices.length - 1)) * chartWidth;
-                    const y = margin.top + ((yMax - price) / yRange) * chartHeight;
+                    const x = (i / (this.prices.length - 1)) * width;
+                    const y = height - ((price - yMin) / yRange) * height;
                     
                     if (i === 0) {
-                        ctx.lineTo(x, y);
+                        ctx.lineTo(0, y);
                     } else {
                         ctx.lineTo(x, y);
                     }
                 });
                 
-                ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
+                ctx.lineTo(width, height);
                 ctx.closePath();
                 
-                // Create gradient fill within chart area
-                const gradient = ctx.createLinearGradient(0, margin.top, 0, margin.top + chartHeight);
+                // Create gradient fill
+                const gradient = ctx.createLinearGradient(0, 0, 0, height);
                 gradient.addColorStop(0, lineColor + '40');
                 gradient.addColorStop(1, lineColor + '05');
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
-                // Draw line within chart bounds - TradingView style
+                // Draw line
                 ctx.beginPath();
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = 1.5;  // Thinner line like TradingView
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+                ctx.lineWidth = 2;
                 
                 this.prices.forEach((price, i) => {
-                    const x = margin.left + (i / (this.prices.length - 1)) * chartWidth;
-                    const y = margin.top + ((yMax - price) / yRange) * chartHeight;
+                    const x = (i / (this.prices.length - 1)) * width;
+                    const y = height - ((price - yMin) / yRange) * height;
                     
                     if (i === 0) {
                         ctx.moveTo(x, y);
@@ -342,15 +319,14 @@
                 
                 ctx.stroke();
                 
-                // Draw current price dot - smaller like TradingView
-                const lastX = margin.left + chartWidth;
-                const lastY = margin.top + ((yMax - lastPrice) / yRange) * chartHeight;
+                // Draw current price dot
+                const lastX = width;
+                const lastY = height - ((lastPrice - yMin) / yRange) * height;
                 
                 ctx.beginPath();
-                ctx.arc(lastX - 2, lastY, 2, 0, Math.PI * 2);  // Smaller dot
+                ctx.arc(lastX - 3, lastY, 3, 0, Math.PI * 2);
                 ctx.fillStyle = lineColor;
                 ctx.fill();
-                
             }
         }
         

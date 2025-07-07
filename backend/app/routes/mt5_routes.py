@@ -195,7 +195,7 @@ async def refresh_account_data(login: str, x_api_key: str = Header(None)):
         raise HTTPException(status_code=500, detail=f"Failed to refresh data: {error_msg}")
 
 @router.get("/api/mt5/chart-history/{symbol}")
-async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180, smoothing: int = 0):
+async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180):
     """Get historical chart data for a symbol"""
     try:
         # Connect to the chart history database
@@ -243,26 +243,6 @@ async def get_chart_history(symbol: str, hours: int = 24, max_points: int = 180,
         if len(data) > max_points:
             step = len(data) // max_points
             data = data[::step]
-        
-        # Apply smoothing if requested
-        if smoothing > 0 and len(data) > smoothing:
-            smoothed_data = []
-            for i in range(len(data)):
-                if i < smoothing:
-                    # For early points, use available data
-                    window_start = 0
-                    window_end = i + 1
-                else:
-                    # Use moving average window
-                    window_start = i - smoothing + 1
-                    window_end = i + 1
-                
-                # Calculate moving average price
-                window_prices = [data[j][1] for j in range(window_start, window_end)]
-                avg_price = sum(window_prices) / len(window_prices)
-                smoothed_data.append((data[i][0], avg_price))  # Keep original timestamp
-            
-            data = smoothed_data
         
         # Format response with safe data conversion
         chart_data = []
