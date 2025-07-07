@@ -34,7 +34,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-width: 80px;
+      min-width: 90px;
       height: 100%;
       text-align: center;
       padding: 0 8px;
@@ -133,7 +133,7 @@
     @media (max-width: 600px) {
       .session-widget-container { padding: 0 8px; }
       .sessions { gap: 8px; }
-      .session { min-width: 60px; }
+      .session { min-width: 70px; }
       .clock { min-width: 80px; }
       .clock-time { font-size: 20px; }
     }
@@ -451,7 +451,7 @@
     
     function updateClockContent(face, market, time) {
       const clockFace = document.getElementById(face);
-      clockFace.querySelector('.clock-label').textContent = market + ' Time';
+      clockFace.querySelector('.clock-label').textContent = market;
       clockFace.querySelector('.clock-time').textContent = time;
     }
     
