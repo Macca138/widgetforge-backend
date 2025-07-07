@@ -265,9 +265,10 @@
                 const maxPrice = this.getPercentile(this.prices, 0.95); // 95th percentile
                 const priceRange = maxPrice - minPrice;
                 
-                // Use minimum 20% padding or at least 0.01% of the price value
-                const minPadding = Math.max(priceRange * 0.2, maxPrice * 0.0001);
-                const padding = Math.max(priceRange * 0.2, minPadding);
+                // Set a minimum absolute padding (for FX pairs, e.g., 0.0005)
+                const minAbsolutePadding = 0.0005;
+                const minPadding = Math.max(priceRange * 0.3, maxPrice * 0.0001, minAbsolutePadding);
+                const padding = minPadding;
                 
                 const yMin = minPrice - padding;
                 const yMax = maxPrice + padding;
