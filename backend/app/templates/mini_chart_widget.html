@@ -241,6 +241,17 @@
                 
                 if (this.prices.length < 2) return;
                 
+                // Chart margins - leave space for timestamps and padding
+                const margin = {
+                    top: 10,
+                    right: 10,
+                    bottom: 25,  // Space for timestamps
+                    left: 10
+                };
+                
+                const chartWidth = width - margin.left - margin.right;
+                const chartHeight = height - margin.top - margin.bottom;
+                
                 // Calculate bounds with better range handling
                 const minPrice = Math.min(...this.prices);
                 const maxPrice = Math.max(...this.prices);
@@ -260,12 +271,12 @@
                     ctx.lineWidth = 0.5;
                     ctx.setLineDash([2, 2]);
                     
-                    // Horizontal lines
+                    // Horizontal lines within chart area
                     for (let i = 0; i <= 4; i++) {
-                        const y = (height / 4) * i;
+                        const y = margin.top + (chartHeight / 4) * i;
                         ctx.beginPath();
-                        ctx.moveTo(0, y);
-                        ctx.lineTo(width, y);
+                        ctx.moveTo(margin.left, y);
+                        ctx.lineTo(margin.left + chartWidth, y);
                         ctx.stroke();
                     }
                     
@@ -277,39 +288,39 @@
                 const lastPrice = this.prices[this.prices.length - 1];
                 const lineColor = lastPrice >= firstPrice ? config.upColor : config.downColor;
                 
-                // Draw filled area
+                // Draw filled area within chart bounds
                 ctx.beginPath();
-                ctx.moveTo(0, height);
+                ctx.moveTo(margin.left, margin.top + chartHeight);
                 
                 this.prices.forEach((price, i) => {
-                    const x = (i / (this.prices.length - 1)) * width;
-                    const y = height - ((price - yMin) / yRange) * height;
+                    const x = margin.left + (i / (this.prices.length - 1)) * chartWidth;
+                    const y = margin.top + ((yMax - price) / yRange) * chartHeight;
                     
                     if (i === 0) {
-                        ctx.lineTo(0, y);
+                        ctx.lineTo(x, y);
                     } else {
                         ctx.lineTo(x, y);
                     }
                 });
                 
-                ctx.lineTo(width, height);
+                ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
                 ctx.closePath();
                 
-                // Create gradient fill
-                const gradient = ctx.createLinearGradient(0, 0, 0, height);
+                // Create gradient fill within chart area
+                const gradient = ctx.createLinearGradient(0, margin.top, 0, margin.top + chartHeight);
                 gradient.addColorStop(0, lineColor + '40');
                 gradient.addColorStop(1, lineColor + '05');
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
-                // Draw line
+                // Draw line within chart bounds
                 ctx.beginPath();
                 ctx.strokeStyle = lineColor;
                 ctx.lineWidth = 2;
                 
                 this.prices.forEach((price, i) => {
-                    const x = (i / (this.prices.length - 1)) * width;
-                    const y = height - ((price - yMin) / yRange) * height;
+                    const x = margin.left + (i / (this.prices.length - 1)) * chartWidth;
+                    const y = margin.top + ((yMax - price) / yRange) * chartHeight;
                     
                     if (i === 0) {
                         ctx.moveTo(x, y);
@@ -321,13 +332,53 @@
                 ctx.stroke();
                 
                 // Draw current price dot
-                const lastX = width;
-                const lastY = height - ((lastPrice - yMin) / yRange) * height;
+                const lastX = margin.left + chartWidth;
+                const lastY = margin.top + ((yMax - lastPrice) / yRange) * chartHeight;
                 
                 ctx.beginPath();
                 ctx.arc(lastX - 3, lastY, 3, 0, Math.PI * 2);
                 ctx.fillStyle = lineColor;
                 ctx.fill();
+                
+                // Draw timestamp labels like TradingView
+                this.drawTimestamps(ctx, margin, chartWidth);
+            }
+            
+            drawTimestamps(ctx, margin, chartWidth) {
+                if (!this.data || this.data.length < 2) return;
+                
+                const dataLength = this.data.length;
+                const timeLabels = 4; // Show 4 time labels like TradingView
+                const canvasHeight = this.canvas.height / window.devicePixelRatio;
+                
+                ctx.fillStyle = '{{ text_color }}';
+                ctx.font = '11px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                
+                for (let i = 0; i <= timeLabels; i++) {
+                    const dataIndex = Math.floor((i / timeLabels) * (dataLength - 1));
+                    const timestamp = this.data[dataIndex].timestamp;
+                    const x = margin.left + (i / timeLabels) * chartWidth;
+                    const y = canvasHeight - 8; // Position at bottom with small margin
+                    
+                    // Format time like TradingView (HH:mm or just hour)
+                    const date = new Date(timestamp * 1000);
+                    let timeText;
+                    
+                    if (i === 0) {
+                        // First label: just hour
+                        timeText = date.getHours().toString();
+                    } else {
+                        // Other labels: HH:mm format
+                        timeText = date.toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            hour12: false 
+                        });
+                    }
+                    
+                    ctx.fillText(timeText, x, y);
+                }
             }
         }
         
