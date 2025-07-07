@@ -174,8 +174,8 @@ class ChartDataCollector:
             logger.info("Collecting initial 24-hour history...")
             self.collect_initial_history()
             
-            # Update loop - every 8 minutes for ~180 points per day
-            update_interval = 8 * 60  # 8 minutes in seconds
+            # Update loop - every 3 minutes for ~480 points per day
+            update_interval = 3 * 60  # 3 minutes in seconds
             cleanup_counter = 0
             
             while True:
@@ -183,9 +183,9 @@ class ChartDataCollector:
                     self.update_prices()
                     logger.info(f"Updated prices for {len(self.symbols)} symbols")
                     
-                    # Run cleanup every 7 updates (roughly every hour)
+                    # Run cleanup every 20 updates (roughly every hour)
                     cleanup_counter += 1
-                    if cleanup_counter >= 7:
+                    if cleanup_counter >= 20:
                         self.cleanup_old_data()
                         cleanup_counter = 0
                     

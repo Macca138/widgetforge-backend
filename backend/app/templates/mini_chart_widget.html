@@ -144,8 +144,11 @@
                 this.setupCanvas();
                 this.fetchData();
                 
-                // Update every X seconds
+                // Update chart data every X seconds (from config)
                 setInterval(() => this.fetchData(), config.updateInterval * 1000);
+                
+                // Update price and percentage from cache every 2 seconds
+                setInterval(() => this.updateRealTimePrice(), 2000);
                 
                 // Handle resize
                 window.addEventListener('resize', () => this.setupCanvas());
@@ -176,8 +179,8 @@
                     if (result.data && result.data.length > 0) {
                         this.data = result.data;
                         this.prices = this.data.map(d => d.price);
-                        this.updateUI(result);
                         
+                        // Only update chart-specific UI on chart data fetch
                         if (this.isLoading) {
                             this.isLoading = false;
                             document.getElementById('loadingMessage').style.display = 'none';
@@ -196,19 +199,28 @@
                 }
             }
             
-            updateUI(result) {
-                const lastPrice = result.last_price;
-                const firstPrice = result.first_price;
-                const changePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
-                
-                // Update price
-                document.getElementById('currentPrice').textContent = lastPrice.toFixed(this.getDecimals());
-                
-                // Update change
-                const changeElement = document.getElementById('changePercent');
-                const arrow = changePercent > 0 ? '▲' : changePercent < 0 ? '▼' : '';
-                changeElement.textContent = `${arrow}${Math.abs(changePercent).toFixed(2)}%`;
-                changeElement.className = `change ${changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral'}`;
+            async updateRealTimePrice() {
+                try {
+                    const response = await fetch(`/price/${config.symbol}`);
+                    if (!response.ok) return;
+                    
+                    const priceData = await response.json();
+                    if (priceData && priceData.price && typeof priceData.change_pct !== 'undefined') {
+                        const currentPrice = priceData.price;
+                        const changePercent = priceData.change_pct; // Use the same calculation as ticker widget
+                        
+                        // Update price
+                        document.getElementById('currentPrice').textContent = currentPrice.toFixed(this.getDecimals());
+                        
+                        // Update change - same format as ticker widget
+                        const changeElement = document.getElementById('changePercent');
+                        const arrow = changePercent >= 0 ? '▲' : '▼';
+                        changeElement.textContent = `${arrow}${Math.abs(changePercent).toFixed(2)}%`;
+                        changeElement.className = `change ${changePercent >= 0 ? 'positive' : 'negative'}`;
+                    }
+                } catch (error) {
+                    console.error('Error fetching real-time price:', error);
+                }
             }
             
             getDecimals() {
@@ -228,11 +240,14 @@
                 
                 if (this.prices.length < 2) return;
                 
-                // Calculate bounds
+                // Calculate bounds with better range handling
                 const minPrice = Math.min(...this.prices);
                 const maxPrice = Math.max(...this.prices);
                 const priceRange = maxPrice - minPrice;
-                const padding = priceRange * 0.1;
+                
+                // Use minimum 20% padding or at least 0.01% of the price value
+                const minPadding = Math.max(priceRange * 0.2, maxPrice * 0.0001);
+                const padding = Math.max(priceRange * 0.2, minPadding);
                 
                 const yMin = minPrice - padding;
                 const yMax = maxPrice + padding;

@@ -401,7 +401,7 @@ async def mini_chart_widget(request: Request):
         "symbol": params.get("symbol", "EURUSD"),
         "hours": params.get("hours", "24"),
         "max_points": params.get("maxPoints", "180"),
-        "update_interval": params.get("updateInterval", "60"),
+        "update_interval": params.get("updateInterval", "180"),
         
         # Dimensions
         "width": params.get("width", "300"),
