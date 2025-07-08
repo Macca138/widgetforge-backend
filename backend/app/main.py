@@ -449,6 +449,12 @@ async def rotating_asset_widget(request: Request):
         "spread_color": params.get("spreadColor", "#00ffff"),
     })
 
+@app.get("/widgets/rotating-asset-test", response_class=HTMLResponse)
+async def rotating_asset_test_widget(request: Request):
+    return templates.TemplateResponse("rotating_asset_test.html", {
+        "request": request
+    })
+
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():
     base_dir = os.path.dirname(os.path.abspath(__file__))
