@@ -122,8 +122,8 @@
         }
         
         .asset-spread {
-            font-size: {{ (font_size|int * 1.6)|int }}px;
-            font-weight: 800;
+            font-size: {{ (font_size|int * 1.5)|int }}px;
+            font-weight: 700;
             color: {{ spread_color }};
             text-align: center;
             background: {{ spread_color }}44;
@@ -136,13 +136,6 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 20px {{ spread_color }}33;
             letter-spacing: 1px;
             text-transform: uppercase;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
         }
         
         /* Chart Container */
