@@ -394,14 +394,11 @@
       const gmtMinute = utcNow.getUTCMinutes();
       const gmtDay = utcNow.getUTCDay();
       
-      // Get market times (winter or summer) - let's debug what this returns
-      const marketTimes = getMarketTimes(market, utcNow);
-      const isInSummer = isMarketInSummerTime(market, utcNow);
+      // Get market times (winter or summer)
+      const finalMarketTimes = getMarketTimes(market, utcNow);
       
-      // Debug: check what the DST detection is returning
-      console.log(`${market}: isInSummer=${isInSummer}, returning`, marketTimes);
-      
-      const finalMarketTimes = marketTimes;
+      // Debug: log the actual calculation
+      console.log(`${market}: GMT ${gmtHour}:${gmtMinute}, times ${finalMarketTimes.start}-${finalMarketTimes.end}`);
       
       // Check if it's a holiday
       if (isHoliday(now, market)) {
@@ -448,6 +445,7 @@
         const diffH = Math.floor(diffMinutes / 60);
         const diffM = diffMinutes % 60;
         
+        console.log(`${market}: OPEN, closes at ${closeHour}, diff=${diffMinutes}min = ${diffH}h ${diffM}m`);
         return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
       } else {
         // Calculate time until open
@@ -481,6 +479,7 @@
         const diffH = Math.floor(diffMinutes / 60);
         const diffM = diffMinutes % 60;
         
+        console.log(`${market}: CLOSED, opens at ${openHour}, diff=${diffMinutes}min = ${diffH}h ${diffM}m`);
         return { open: false, status: `Opens in ${diffH}h ${pad(diffM)}m` };
       }
     }
