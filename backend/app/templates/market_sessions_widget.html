@@ -346,13 +346,14 @@
     function getMarketStatus(now, market) {
       const cfg = marketConfigs[market];
       
-      // Get current time in GMT (Greenwich Mean Time)
-      const gmtTime = new Date(now.toLocaleString("en-US", {timeZone: "GMT"}));
-      const gmtHour = gmtTime.getHours();
-      const gmtDay = gmtTime.getDay();
+      // Get current UTC time and convert to GMT
+      const utcNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+      const gmtHour = utcNow.getUTCHours();
+      const gmtMinute = utcNow.getUTCMinutes();
+      const gmtDay = utcNow.getUTCDay();
       
       // Get market times (winter or summer)
-      const marketTimes = getMarketTimes(market, gmtTime);
+      const marketTimes = getMarketTimes(market, utcNow);
       
       // Check if it's a holiday
       if (isHoliday(now, market)) {
@@ -385,32 +386,53 @@
       }
       
       if (isOpen) {
-        // Calculate time until close in GMT
-        let closeTimeGMT = new Date(now.toLocaleString("en-US", {timeZone: "GMT"}));
-        if (marketTimes.start > marketTimes.end && gmtHour < marketTimes.end) {
-          // Already past midnight
-          closeTimeGMT.setHours(marketTimes.end, 0, 0, 0);
-        } else if (marketTimes.start > marketTimes.end && gmtHour >= marketTimes.start) {
-          // Before midnight, close is tomorrow
-          closeTimeGMT.setDate(closeTimeGMT.getDate() + 1);
-          closeTimeGMT.setHours(marketTimes.end, 0, 0, 0);
-        } else {
-          // Regular session
-          closeTimeGMT.setHours(marketTimes.end, 0, 0, 0);
+        // Calculate time until close
+        let closeHour = marketTimes.end;
+        if (marketTimes.start > marketTimes.end && gmtHour >= marketTimes.start) {
+          // Cross-midnight session, close is tomorrow
+          closeHour = marketTimes.end + 24;
         }
         
-        // Convert close time from GMT to local time
-        const closeLocal = new Date(closeTimeGMT.toLocaleString("en-US", {timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}));
-        const diffMs = closeLocal - now;
-        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const totalCloseMinutes = closeHour * 60;
+        const totalCurrentMinutes = gmtHour * 60 + gmtMinute;
+        const diffMinutes = totalCloseMinutes - totalCurrentMinutes;
+        
+        const diffH = Math.floor(diffMinutes / 60);
+        const diffM = diffMinutes % 60;
+        
         return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
       } else {
         // Calculate time until open
-        const nextOpen = getNextOpenTime(now, market);
-        const diffMs = nextOpen - now;
-        const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        let openHour = marketTimes.start;
+        
+        // For cross-midnight markets (Sydney), check if we should open today or tomorrow
+        if (marketTimes.start > marketTimes.end) {
+          // Cross-midnight market (Sydney)
+          if (gmtHour < marketTimes.start && gmtHour >= marketTimes.end) {
+            // We're between end and start time, so market opens today
+            openHour = marketTimes.start;
+          } else {
+            // Market opens tomorrow
+            openHour = marketTimes.start + 24;
+          }
+        } else {
+          // Regular market
+          if (gmtHour < marketTimes.start) {
+            // Market opens today
+            openHour = marketTimes.start;
+          } else {
+            // Market opens tomorrow
+            openHour = marketTimes.start + 24;
+          }
+        }
+        
+        const totalOpenMinutes = openHour * 60;
+        const totalCurrentMinutes = gmtHour * 60 + gmtMinute;
+        const diffMinutes = totalOpenMinutes - totalCurrentMinutes;
+        
+        const diffH = Math.floor(diffMinutes / 60);
+        const diffM = diffMinutes % 60;
+        
         return { open: false, status: `Opens in ${diffH}h ${pad(diffM)}m` };
       }
     }
@@ -427,69 +449,8 @@
     }
     
     function getNextOpenTime(now, market) {
-      const cfg = marketConfigs[market];
-      
-      // Get GMT time
-      const gmtTime = new Date(now.toLocaleString("en-US", {timeZone: "GMT"}));
-      
-      // Start from current time and find next opening
-      let testDate = new Date(gmtTime);
-      
-      // Get market times for today
-      const todayMarketTimes = getMarketTimes(market, gmtTime);
-      
-      // First check if market opens later today
-      let todayOpen = new Date(gmtTime);
-      todayOpen.setHours(todayMarketTimes.start, 0, 0, 0);
-      
-      // If it's still today and market hasn't opened yet
-      if (todayOpen > gmtTime && todayOpen.getDay() >= 1 && todayOpen.getDay() <= 5) {
-        // Convert back to local time
-        const todayOpenLocal = new Date(todayOpen.toLocaleString("en-US", {timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}));
-        if (!isHoliday(todayOpenLocal, market)) {
-          return todayOpenLocal;
-        }
-      }
-      
-      // Find next Monday (or Sunday for Sydney)
-      let daysToAdd = 1;
-      while (daysToAdd <= 7) {
-        testDate = new Date(gmtTime);
-        testDate.setDate(testDate.getDate() + daysToAdd);
-        
-        // Get market times for this future date
-        const futureMarketTimes = getMarketTimes(market, testDate);
-        testDate.setHours(futureMarketTimes.start, 0, 0, 0);
-        
-        const testDay = testDate.getDay();
-        let isValidDay = false;
-        
-        if (market === 'Sydney') {
-          // Sydney opens Sunday
-          isValidDay = (testDay === 0);
-        } else {
-          // All other markets open Monday-Friday
-          isValidDay = (testDay >= 1 && testDay <= 5);
-        }
-        
-        if (isValidDay) {
-          // Convert back to local time
-          const testLocal = new Date(testDate.toLocaleString("en-US", {timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}));
-          
-          // Check if it's a holiday
-          if (!isHoliday(testLocal, market)) {
-            return testLocal;
-          }
-        }
-        
-        daysToAdd++;
-      }
-      
-      // Fallback - return next Monday at market open time
-      const fallback = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const fallbackMarketTimes = getMarketTimes(market, fallback);
-      fallback.setHours(fallbackMarketTimes.start, 0, 0, 0);
-      return fallback;
+      // Simplified - just return a future time, the main calculation is done above
+      return new Date(now.getTime() + 24 * 60 * 60 * 1000);
     }
 
     // Render sessions (updated to use robust logic)
