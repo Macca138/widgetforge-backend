@@ -118,12 +118,18 @@
     </div>
     
     <script>
+        // Helper to get query parameter from URL
+        function getQueryParam(name, defaultValue) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name) || defaultValue;
+        }
+
         const config = {
-            symbol: '{{ symbol }}',
+            symbol: getQueryParam('symbol', '{{ symbol }}'),
             hours: {{ hours }},
             maxPoints: {{ max_points }},
             updateInterval: {{ update_interval }},
-            lineColor: '{{ line_color }}',
+            lineColor: getQueryParam('line_color', '{{ line_color }}'),
             fillColor: '{{ fill_color }}',
             upColor: '{{ up_color }}',
             downColor: '{{ down_color }}',
@@ -240,9 +246,24 @@
                 
                 if (this.prices.length < 2) return;
                 
+                // Moving average smoothing
+                function movingAverage(data, windowSize) {
+                    const result = [];
+                    for (let i = 0; i < data.length; i++) {
+                        let start = Math.max(0, i - windowSize + 1);
+                        let sum = 0;
+                        for (let j = start; j <= i; j++) {
+                            sum += data[j];
+                        }
+                        result.push(sum / (i - start + 1));
+                    }
+                    return result;
+                }
+                const smoothedPrices = movingAverage(this.prices, 3); // 3-point window
+                
                 // Calculate bounds with better range handling
-                const minPrice = Math.min(...this.prices);
-                const maxPrice = Math.max(...this.prices);
+                const minPrice = Math.min(...smoothedPrices);
+                const maxPrice = Math.max(...smoothedPrices);
                 const priceRange = maxPrice - minPrice;
                 
                 // Use minimum 20% padding or at least 0.01% of the price value
@@ -272,44 +293,71 @@
                 }
                 
                 // Determine line color based on trend
-                const firstPrice = this.prices[0];
-                const lastPrice = this.prices[this.prices.length - 1];
-                const lineColor = lastPrice >= firstPrice ? config.upColor : config.downColor;
-
-                // Helper for Bézier smoothing
-                function getControlPoints(x0, y0, x1, y1, x2, y2, t) {
-                    const d01 = Math.hypot(x1 - x0, y1 - y0);
-                    const d12 = Math.hypot(x2 - x1, y2 - y1);
-                    const fa = t * d01 / (d01 + d12);
-                    const fb = t - fa;
-                    const p1x = x1 + fa * (x0 - x2);
-                    const p1y = y1 + fa * (y0 - y2);
-                    const p2x = x1 - fb * (x0 - x2);
-                    const p2y = y1 - fb * (y0 - y2);
-                    return [p1x, p1y, p2x, p2y];
-                }
-                const t = 0.2; // tension for smoothing
+                const lineColor = config.lineColor;
 
                 // Prepare points
-                const points = this.prices.map((price, i) => {
-                    const x = (i / (this.prices.length - 1)) * width;
+                const points = smoothedPrices.map((price, i) => {
+                    const x = (i / (smoothedPrices.length - 1)) * width;
                     const y = height - ((price - yMin) / yRange) * height;
                     return { x, y };
                 });
 
-                // Draw filled area (smoothed)
-                ctx.beginPath();
-                ctx.moveTo(points[0].x, height);
-                ctx.lineTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    const p0 = points[i - 1];
-                    const p1 = points[i];
-                    const p2 = points[i + 1] || p1;
-                    const [cp1x, cp1y, cp2x, cp2y] = getControlPoints(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, t);
-                    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+                // Monotone cubic spline helper (adapted from Chart.js)
+                function monotoneSpline(ctx, points, fillToY) {
+                    const n = points.length;
+                    if (n < 2) return;
+                    // Calculate slopes (m) and tangents (t)
+                    const m = new Array(n - 1);
+                    const t = new Array(n);
+                    for (let i = 0; i < n - 1; i++) {
+                        const dx = points[i + 1].x - points[i].x;
+                        const dy = points[i + 1].y - points[i].y;
+                        m[i] = dx ? dy / dx : 0;
+                    }
+                    t[0] = m[0];
+                    for (let i = 1; i < n - 1; i++) {
+                        t[i] = (m[i - 1] + m[i]) / 2;
+                    }
+                    t[n - 1] = m[n - 2];
+                    // Adjust tangents to preserve monotonicity
+                    for (let i = 0; i < n - 1; i++) {
+                        if (m[i] === 0) {
+                            t[i] = 0;
+                            t[i + 1] = 0;
+                        } else {
+                            const a = t[i] / m[i];
+                            const b = t[i + 1] / m[i];
+                            const s = a * a + b * b;
+                            if (s > 9) {
+                                const tau = 3 / Math.sqrt(s);
+                                t[i] = tau * a * m[i];
+                                t[i + 1] = tau * b * m[i];
+                            }
+                        }
+                    }
+                    // Draw curve
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, points[0].y);
+                    for (let i = 0; i < n - 1; i++) {
+                        const p0 = points[i];
+                        const p1 = points[i + 1];
+                        const dx = p1.x - p0.x;
+                        ctx.bezierCurveTo(
+                            p0.x + dx / 3, p0.y + t[i] * dx / 3,
+                            p1.x - dx / 3, p1.y - t[i + 1] * dx / 3,
+                            p1.x, p1.y
+                        );
+                    }
+                    if (typeof fillToY === 'number') {
+                        // For area fill: close the path to the bottom
+                        ctx.lineTo(points[n - 1].x, fillToY);
+                        ctx.lineTo(points[0].x, fillToY);
+                        ctx.closePath();
+                    }
                 }
-                ctx.lineTo(points[points.length - 1].x, height);
-                ctx.closePath();
+
+                // Draw filled area (smoothed)
+                monotoneSpline(ctx, points, height);
                 // Create gradient fill
                 const gradient = ctx.createLinearGradient(0, 0, 0, height);
                 gradient.addColorStop(0, lineColor + '40');
@@ -318,25 +366,13 @@
                 ctx.fill();
 
                 // Draw smoothed line
+                ctx.save();
                 ctx.beginPath();
+                monotoneSpline(ctx, points);
                 ctx.strokeStyle = lineColor;
                 ctx.lineWidth = 2;
-                ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    const p0 = points[i - 1];
-                    const p1 = points[i];
-                    const p2 = points[i + 1] || p1;
-                    const [cp1x, cp1y, cp2x, cp2y] = getControlPoints(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, t);
-                    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
-                }
                 ctx.stroke();
-
-                // Draw current price dot
-                const last = points[points.length - 1];
-                ctx.beginPath();
-                ctx.arc(last.x - 3, last.y, 3, 0, Math.PI * 2);
-                ctx.fillStyle = lineColor;
-                ctx.fill();
+                ctx.restore();
             }
         }
         
