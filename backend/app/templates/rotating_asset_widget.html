@@ -261,9 +261,9 @@
         const MAJOR_FOREX = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD'];
         const INDICES = ['US30', 'NAS100', 'SP500', 'DAX40', 'UK100'];  // Updated to match actual symbols
         const COMMODITIES = ['XAUUSD', 'XAGUSD', 'XTIUSD', 'XBRUSD'];  // Updated: XTIUSD=oil, XBRUSD=brent
-        const CRYPTO = ['BTCUSD', 'ETHUSD'];  // Added crypto from your symbols
+        // Removed crypto assets due to wide spreads
         
-        const ALL_ASSETS = [...MAJOR_FOREX, ...INDICES, ...COMMODITIES, ...CRYPTO];
+        const ALL_ASSETS = [...MAJOR_FOREX, ...INDICES, ...COMMODITIES];
         
         let currentAssetIndex = 0;
         let flipState = false;
@@ -333,8 +333,8 @@
             const assetFlipper = document.getElementById('asset-flipper');
             const chartFlipper = document.getElementById('chart-flipper');
             
-            // Load data for the new asset first
-            loadAssetData(asset);
+            // Load data for the new asset (but don't update visible face yet)
+            loadAssetDataOnly(asset);
             
             // Update the hidden asset face with new data
             const targetAssetFace = flipState ? 'front' : 'back';
@@ -391,7 +391,7 @@
             document.getElementById(`asset-spread-${face}`).textContent = `Spread: ${spreadValue}`;
         }
         
-        function loadAssetData(asset) {
+        function loadAssetDataOnly(asset) {
             // Only generate sample data if we don't have real data for this asset
             if (!priceData[asset]) {
                 // Generate realistic sample data based on asset type
@@ -409,10 +409,6 @@
                     // Oil (WTI and Brent)
                     basePrice = Math.random() * 20 + 60;
                     spreadRange = [2.0, 8.0];
-                } else if (asset.includes('BTC') || asset.includes('ETH')) {
-                    // Cryptocurrency
-                    basePrice = asset.includes('BTC') ? Math.random() * 10000 + 40000 : Math.random() * 500 + 2000;
-                    spreadRange = [5.0, 50.0];
                 } else {
                     // Indices
                     basePrice = Math.random() * 1000 + 30000;
@@ -427,8 +423,12 @@
                 
                 console.log(`Generated sample data for ${asset}: ${JSON.stringify(priceData[asset])}`);
             }
-            
-            // Update current visible face (don't regenerate data)
+            // Don't update visible face - only load data
+        }
+        
+        function loadAssetData(asset) {
+            // Load data and update the current visible face
+            loadAssetDataOnly(asset);
             const currentFace = flipState ? 'back' : 'front';
             updateAssetFace(currentFace, asset);
         }
