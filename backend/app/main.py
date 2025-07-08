@@ -422,6 +422,32 @@ async def mini_chart_widget(request: Request):
         "show_grid": params.get("showGrid", "true"),
     })
 
+@app.get("/widgets/rotating-asset", response_class=HTMLResponse)
+async def rotating_asset_widget(request: Request):
+    params = dict(request.query_params)
+    
+    return templates.TemplateResponse("rotating_asset_widget.html", {
+        "request": request,
+        
+        # Layout
+        "width": params.get("width", "300"),
+        "height": params.get("height", "400"),
+        "border_radius": params.get("borderRadius", "8"),
+        
+        # Typography
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("fontSize", "14"),
+        "font_weight": params.get("fontWeight", "600"),
+        
+        # Colors
+        "bg_color": params.get("bgColor", "rgba(0, 0, 0, 0.9)"),
+        "text_color": params.get("textColor", "#ffffff"),
+        "chart_color": params.get("chartColor", "#00ff88"),
+        "up_color": params.get("upColor", "#00ff88"),
+        "down_color": params.get("downColor", "#ff4444"),
+        "neutral_color": params.get("neutralColor", "#cccccc"),
+    })
+
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():
     base_dir = os.path.dirname(os.path.abspath(__file__))

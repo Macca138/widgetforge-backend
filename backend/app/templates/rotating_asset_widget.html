@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating Asset Widget</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: transparent;
+            font-family: '{{ font }}', 'Inter', 'Roboto', sans-serif;
+            overflow: hidden;
+        }
+        
+        .widget-container {
+            width: {{ width }}px;
+            height: {{ height }}px;
+            background: {{ bg_color }};
+            border-radius: {{ border_radius }}px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 3D Rotation Container */
+        .asset-flip-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 50%;
+            position: relative;
+        }
+        
+        .asset-flipper {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.8s ease-in-out;
+            transform-origin: center center;
+            transform: rotateY(0deg);
+        }
+        
+        .asset-flipper.flipping {
+            transform: rotateY(-180deg);
+        }
+        
+        .asset-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 16px;
+        }
+        
+        .asset-face.front {
+            transform: rotateY(0deg);
+        }
+        
+        .asset-face.back {
+            transform: rotateY(180deg);
+        }
+        
+        /* Asset Info Styling */
+        .asset-name {
+            font-size: {{ (font_size|int * 1.2)|int }}px;
+            font-weight: {{ font_weight }};
+            color: {{ text_color }};
+            text-align: center;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .asset-price {
+            font-size: {{ (font_size|int * 1.5)|int }}px;
+            font-weight: 700;
+            color: {{ text_color }};
+            text-align: center;
+            margin-bottom: 6px;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .asset-change {
+            font-size: {{ (font_size|int * 0.9)|int }}px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 6px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            align-self: center;
+        }
+        
+        .asset-change.positive {
+            color: {{ up_color }};
+            background: {{ up_color }}22;
+        }
+        
+        .asset-change.negative {
+            color: {{ down_color }};
+            background: {{ down_color }}22;
+        }
+        
+        .asset-change.neutral {
+            color: {{ neutral_color }};
+            background: {{ neutral_color }}22;
+        }
+        
+        .asset-spread {
+            font-size: {{ (font_size|int * 0.8)|int }}px;
+            font-weight: 500;
+            color: {{ text_color }}CC;
+            text-align: center;
+        }
+        
+        /* Chart Container */
+        .chart-section {
+            width: 100%;
+            height: 50%;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: {{ text_color }}66;
+            font-size: {{ (font_size|int * 0.8)|int }}px;
+        }
+        
+        .error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: {{ down_color }};
+            font-size: {{ (font_size|int * 0.8)|int }}px;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <!-- Top Half - Asset Info with Rotation -->
+        <div class="asset-flip-container">
+            <div class="asset-flipper" id="asset-flipper">
+                <div class="asset-face front" id="asset-front">
+                    <div class="asset-name" id="asset-name-front">Loading...</div>
+                    <div class="asset-price" id="asset-price-front">-</div>
+                    <div class="asset-change neutral" id="asset-change-front">-</div>
+                    <div class="asset-spread" id="asset-spread-front">Spread: -</div>
+                </div>
+                <div class="asset-face back" id="asset-back">
+                    <div class="asset-name" id="asset-name-back">Loading...</div>
+                    <div class="asset-price" id="asset-price-back">-</div>
+                    <div class="asset-change neutral" id="asset-change-back">-</div>
+                    <div class="asset-spread" id="asset-spread-back">Spread: -</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Half - Mini Chart -->
+        <div class="chart-section">
+            <canvas id="chart-canvas" class="chart-canvas"></canvas>
+            <div id="chart-loading" class="loading">Loading chart...</div>
+            <div id="chart-error" class="error" style="display: none;">Chart unavailable</div>
+        </div>
+    </div>
+
+    <script>
+        // Asset list configuration
+        const MAJOR_FOREX = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD'];
+        const INDICES = ['US30', 'US500', 'NAS100', 'UK100', 'GER40', 'FRA40', 'JPN225'];
+        const COMMODITIES = ['XAUUSD', 'XAGUSD', 'USOIL', 'UKOIL'];
+        
+        const ALL_ASSETS = [...MAJOR_FOREX, ...INDICES, ...COMMODITIES];
+        
+        let currentAssetIndex = 0;
+        let flipState = false;
+        let isFlipping = false;
+        let priceData = {};
+        let chartContext = null;
+        let currentChart = null;
+        
+        // Initialize the widget
+        function initWidget() {
+            const canvas = document.getElementById('chart-canvas');
+            chartContext = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            chartContext.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            // Load initial asset
+            loadAssetData(ALL_ASSETS[currentAssetIndex]);
+            
+            // Start rotation cycle
+            setInterval(rotateToNextAsset, 5000);
+            
+            // Start price updates
+            connectPriceWebSocket();
+        }
+        
+        function rotateToNextAsset() {
+            if (isFlipping) return;
+            
+            const nextIndex = (currentAssetIndex + 1) % ALL_ASSETS.length;
+            const nextAsset = ALL_ASSETS[nextIndex];
+            
+            // Load data for next asset
+            loadAssetData(nextAsset);
+            
+            // Perform flip animation
+            flipToAsset(nextAsset);
+            
+            currentAssetIndex = nextIndex;
+        }
+        
+        function flipToAsset(asset) {
+            if (isFlipping) return;
+            
+            isFlipping = true;
+            const flipper = document.getElementById('asset-flipper');
+            
+            // Update the hidden face with new asset data
+            const targetFace = flipState ? 'front' : 'back';
+            updateAssetFace(targetFace, asset);
+            
+            // Perform flip
+            if (flipState) {
+                flipper.classList.remove('flipping');
+            } else {
+                flipper.classList.add('flipping');
+            }
+            
+            flipState = !flipState;
+            
+            setTimeout(() => {
+                isFlipping = false;
+                // Update chart for new asset
+                loadChartData(asset);
+            }, 800);
+        }
+        
+        function updateAssetFace(face, asset) {
+            const data = priceData[asset] || {};
+            
+            document.getElementById(`asset-name-${face}`).textContent = asset;
+            document.getElementById(`asset-price-${face}`).textContent = data.price || '-';
+            
+            const changeElement = document.getElementById(`asset-change-${face}`);
+            const changePercent = data.changePercent || 0;
+            changeElement.textContent = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+            
+            // Update change color
+            changeElement.className = 'asset-change';
+            if (changePercent > 0) {
+                changeElement.classList.add('positive');
+            } else if (changePercent < 0) {
+                changeElement.classList.add('negative');
+            } else {
+                changeElement.classList.add('neutral');
+            }
+            
+            document.getElementById(`asset-spread-${face}`).textContent = `Spread: ${data.spread || '-'}`;
+        }
+        
+        function loadAssetData(asset) {
+            // In a real implementation, this would fetch from your MT5 data API
+            // For now, we'll use placeholder data
+            priceData[asset] = {
+                price: (Math.random() * 100 + 1).toFixed(4),
+                changePercent: (Math.random() * 4 - 2).toFixed(2),
+                spread: (Math.random() * 2 + 0.5).toFixed(1)
+            };
+            
+            // Update current visible face
+            const currentFace = flipState ? 'back' : 'front';
+            updateAssetFace(currentFace, asset);
+        }
+        
+        function loadChartData(asset) {
+            // Clear previous chart
+            if (currentChart) {
+                chartContext.clearRect(0, 0, chartContext.canvas.width, chartContext.canvas.height);
+            }
+            
+            // Generate sample chart data (replace with real MT5 data)
+            const chartData = generateSampleChartData();
+            drawMiniChart(chartData);
+        }
+        
+        function generateSampleChartData() {
+            const data = [];
+            let price = 1.0000 + Math.random() * 0.1;
+            
+            for (let i = 0; i < 50; i++) {
+                price += (Math.random() - 0.5) * 0.001;
+                data.push(price);
+            }
+            
+            return data;
+        }
+        
+        function drawMiniChart(data) {
+            const canvas = document.getElementById('chart-canvas');
+            const ctx = chartContext;
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (data.length < 2) return;
+            
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            const range = max - min || 0.001;
+            
+            ctx.strokeStyle = '{{ chart_color }}';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            
+            for (let i = 0; i < data.length; i++) {
+                const x = (i / (data.length - 1)) * width;
+                const y = height - ((data[i] - min) / range) * height;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+        }
+        
+        function connectPriceWebSocket() {
+            // Connect to existing price stream WebSocket
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/price-stream`);
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    // Update price data when received
+                    if (data.symbol && ALL_ASSETS.includes(data.symbol)) {
+                        priceData[data.symbol] = {
+                            price: data.price,
+                            changePercent: data.changePercent || 0,
+                            spread: data.spread || '-'
+                        };
+                        
+                        // Update display if this is the current asset
+                        const currentAsset = ALL_ASSETS[currentAssetIndex];
+                        if (data.symbol === currentAsset) {
+                            const currentFace = flipState ? 'back' : 'front';
+                            updateAssetFace(currentFace, currentAsset);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing price data:', e);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initWidget);
+    </script>
+</body>
+</html>
