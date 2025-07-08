@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rotating Asset Widget</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>"">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
         
@@ -206,21 +207,35 @@
         // Initialize the widget
         function initWidget() {
             const canvas = document.getElementById('chart-canvas');
-            chartContext = canvas.getContext('2d');
+            const loading = document.getElementById('chart-loading');
             
-            // Set canvas size
-            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-            chartContext.scale(window.devicePixelRatio, window.devicePixelRatio);
-            
-            // Load initial asset
-            loadAssetData(ALL_ASSETS[currentAssetIndex]);
-            
-            // Start rotation cycle
-            setInterval(rotateToNextAsset, 5000);
-            
-            // Start price updates
-            connectPriceWebSocket();
+            try {
+                chartContext = canvas.getContext('2d');
+                
+                // Set canvas size
+                canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+                canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+                chartContext.scale(window.devicePixelRatio, window.devicePixelRatio);
+                
+                // Hide loading, show canvas
+                loading.style.display = 'none';
+                canvas.style.display = 'block';
+                
+                // Load initial asset
+                loadAssetData(ALL_ASSETS[currentAssetIndex]);
+                loadChartData(ALL_ASSETS[currentAssetIndex]);
+                
+                // Start rotation cycle
+                setInterval(rotateToNextAsset, 5000);
+                
+                // Start price updates
+                connectPriceWebSocket();
+                
+                console.log('Rotating Asset Widget initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize widget:', error);
+                loading.textContent = 'Failed to load widget';
+            }
         }
         
         function rotateToNextAsset() {
@@ -271,7 +286,7 @@
             document.getElementById(`asset-price-${face}`).textContent = data.price || '-';
             
             const changeElement = document.getElementById(`asset-change-${face}`);
-            const changePercent = data.changePercent || 0;
+            const changePercent = parseFloat(data.changePercent) || 0;
             changeElement.textContent = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
             
             // Update change color
@@ -288,12 +303,31 @@
         }
         
         function loadAssetData(asset) {
-            // In a real implementation, this would fetch from your MT5 data API
-            // For now, we'll use placeholder data
+            // Generate realistic sample data based on asset type
+            let basePrice, spreadRange;
+            
+            if (asset.includes('USD') || asset.includes('EUR') || asset.includes('GBP')) {
+                // Forex pairs
+                basePrice = Math.random() * 0.5 + 1.0;
+                spreadRange = [0.5, 3.0];
+            } else if (asset.includes('XAU') || asset.includes('XAG')) {
+                // Precious metals
+                basePrice = asset.includes('XAU') ? Math.random() * 100 + 1900 : Math.random() * 5 + 20;
+                spreadRange = [1.0, 5.0];
+            } else if (asset.includes('OIL')) {
+                // Oil
+                basePrice = Math.random() * 20 + 60;
+                spreadRange = [2.0, 8.0];
+            } else {
+                // Indices
+                basePrice = Math.random() * 1000 + 30000;
+                spreadRange = [1.0, 10.0];
+            }
+            
             priceData[asset] = {
-                price: (Math.random() * 100 + 1).toFixed(4),
+                price: basePrice.toFixed(asset.includes('JPY') ? 2 : 4),
                 changePercent: (Math.random() * 4 - 2).toFixed(2),
-                spread: (Math.random() * 2 + 0.5).toFixed(1)
+                spread: (Math.random() * (spreadRange[1] - spreadRange[0]) + spreadRange[0]).toFixed(1)
             };
             
             // Update current visible face
@@ -360,36 +394,48 @@
         }
         
         function connectPriceWebSocket() {
-            // Connect to existing price stream WebSocket
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/price-stream`);
-            
-            ws.onmessage = function(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    // Update price data when received
-                    if (data.symbol && ALL_ASSETS.includes(data.symbol)) {
-                        priceData[data.symbol] = {
-                            price: data.price,
-                            changePercent: data.changePercent || 0,
-                            spread: data.spread || '-'
-                        };
-                        
-                        // Update display if this is the current asset
-                        const currentAsset = ALL_ASSETS[currentAssetIndex];
-                        if (data.symbol === currentAsset) {
-                            const currentFace = flipState ? 'back' : 'front';
-                            updateAssetFace(currentFace, currentAsset);
+            try {
+                // Connect to existing price stream WebSocket
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/price-stream`);
+                
+                ws.onopen = function() {
+                    console.log('WebSocket connected for price updates');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        // Update price data when received
+                        if (data.symbol && ALL_ASSETS.includes(data.symbol)) {
+                            priceData[data.symbol] = {
+                                price: data.price,
+                                changePercent: parseFloat(data.changePercent) || 0,
+                                spread: data.spread || '-'
+                            };
+                            
+                            // Update display if this is the current asset
+                            const currentAsset = ALL_ASSETS[currentAssetIndex];
+                            if (data.symbol === currentAsset) {
+                                const currentFace = flipState ? 'back' : 'front';
+                                updateAssetFace(currentFace, currentAsset);
+                            }
                         }
+                    } catch (e) {
+                        console.error('Error parsing price data:', e);
                     }
-                } catch (e) {
-                    console.error('Error parsing price data:', e);
-                }
-            };
-            
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
+                };
+                
+                ws.onerror = function(error) {
+                    console.log('WebSocket connection failed, using sample data only');
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected, using sample data only');
+                };
+            } catch (error) {
+                console.log('WebSocket not available, using sample data only');
+            }
         }
         
         // Initialize when page loads
