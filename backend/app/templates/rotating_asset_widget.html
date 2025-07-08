@@ -378,42 +378,50 @@
                 changeElement.classList.add('neutral');
             }
             
-            document.getElementById(`asset-spread-${face}`).textContent = `Spread: ${data.spread || '-'}`;
+            const spreadValue = data.spread === undefined || data.spread === null || data.spread === '-' 
+                ? '0.000000' 
+                : parseFloat(data.spread).toFixed(6);
+            document.getElementById(`asset-spread-${face}`).textContent = `Spread: ${spreadValue}`;
         }
         
         function loadAssetData(asset) {
-            // Generate realistic sample data based on asset type
-            let basePrice, spreadRange;
-            
-            if (asset.includes('USD') || asset.includes('EUR') || asset.includes('GBP') || asset.includes('CHF') || asset.includes('CAD') || asset.includes('AUD') || asset.includes('NZD')) {
-                // Forex pairs
-                basePrice = Math.random() * 0.5 + 1.0;
-                spreadRange = [0.5, 3.0];
-            } else if (asset.includes('XAU') || asset.includes('XAG')) {
-                // Precious metals
-                basePrice = asset.includes('XAU') ? Math.random() * 100 + 1900 : Math.random() * 5 + 20;
-                spreadRange = [1.0, 5.0];
-            } else if (asset.includes('XTI') || asset.includes('XBR')) {
-                // Oil (WTI and Brent)
-                basePrice = Math.random() * 20 + 60;
-                spreadRange = [2.0, 8.0];
-            } else if (asset.includes('BTC') || asset.includes('ETH')) {
-                // Cryptocurrency
-                basePrice = asset.includes('BTC') ? Math.random() * 10000 + 40000 : Math.random() * 500 + 2000;
-                spreadRange = [5.0, 50.0];
-            } else {
-                // Indices
-                basePrice = Math.random() * 1000 + 30000;
-                spreadRange = [1.0, 10.0];
+            // Only generate sample data if we don't have real data for this asset
+            if (!priceData[asset]) {
+                // Generate realistic sample data based on asset type
+                let basePrice, spreadRange;
+                
+                if (asset.includes('USD') || asset.includes('EUR') || asset.includes('GBP') || asset.includes('CHF') || asset.includes('CAD') || asset.includes('AUD') || asset.includes('NZD')) {
+                    // Forex pairs
+                    basePrice = Math.random() * 0.5 + 1.0;
+                    spreadRange = [0.5, 3.0];
+                } else if (asset.includes('XAU') || asset.includes('XAG')) {
+                    // Precious metals
+                    basePrice = asset.includes('XAU') ? Math.random() * 100 + 1900 : Math.random() * 5 + 20;
+                    spreadRange = [1.0, 5.0];
+                } else if (asset.includes('XTI') || asset.includes('XBR')) {
+                    // Oil (WTI and Brent)
+                    basePrice = Math.random() * 20 + 60;
+                    spreadRange = [2.0, 8.0];
+                } else if (asset.includes('BTC') || asset.includes('ETH')) {
+                    // Cryptocurrency
+                    basePrice = asset.includes('BTC') ? Math.random() * 10000 + 40000 : Math.random() * 500 + 2000;
+                    spreadRange = [5.0, 50.0];
+                } else {
+                    // Indices
+                    basePrice = Math.random() * 1000 + 30000;
+                    spreadRange = [1.0, 10.0];
+                }
+                
+                priceData[asset] = {
+                    price: basePrice.toFixed(asset.includes('JPY') ? 2 : 4),
+                    changePercent: (Math.random() * 4 - 2).toFixed(2),
+                    spread: (Math.random() * (spreadRange[1] - spreadRange[0]) + spreadRange[0]).toFixed(6)
+                };
+                
+                console.log(`Generated sample data for ${asset}: ${JSON.stringify(priceData[asset])}`);
             }
             
-            priceData[asset] = {
-                price: basePrice.toFixed(asset.includes('JPY') ? 2 : 4),
-                changePercent: (Math.random() * 4 - 2).toFixed(2),
-                spread: (Math.random() * (spreadRange[1] - spreadRange[0]) + spreadRange[0]).toFixed(1)
-            };
-            
-            // Update current visible face
+            // Update current visible face (don't regenerate data)
             const currentFace = flipState ? 'back' : 'front';
             updateAssetFace(currentFace, asset);
         }
