@@ -47,6 +47,8 @@ echo.
 echo Available widgets:
 echo   - Price Ticker:      http://localhost:8000/widgets/smooth-ticker
 echo   - Mini Chart:        http://localhost:8000/widgets/mini-chart?symbol=EURUSD
+echo   - Rotating Asset:    http://localhost:8000/widgets/rotating-asset
+echo   - Market Sessions:   http://localhost:8000/widgets/market-sessions
 echo   - Admin Dashboard:   http://localhost:8000/admin/dashboard
 echo   - Mini Chart Builder: http://localhost:8000/admin/mini-chart-builder
 echo.
