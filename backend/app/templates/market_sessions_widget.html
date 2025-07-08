@@ -394,23 +394,14 @@
       const gmtMinute = utcNow.getUTCMinutes();
       const gmtDay = utcNow.getUTCDay();
       
-      // Get market times (winter or summer)
+      // Get market times (winter or summer) - let's debug what this returns
       const marketTimes = getMarketTimes(market, utcNow);
+      const isInSummer = isMarketInSummerTime(market, utcNow);
       
-      // Debug: hardcode correct summer/winter times for July 2025
-      let debugMarketTimes;
-      if (market === 'Sydney') {
-        debugMarketTimes = { start: 22, end: 7 }; // Winter
-      } else if (market === 'Tokyo') {
-        debugMarketTimes = { start: 0, end: 9 }; // No DST
-      } else if (market === 'London') {
-        debugMarketTimes = { start: 7, end: 16 }; // Summer (BST)
-      } else if (market === 'New York') {
-        debugMarketTimes = { start: 12, end: 21 }; // Summer (EDT)
-      }
+      // Debug: check what the DST detection is returning
+      console.log(`${market}: isInSummer=${isInSummer}, returning`, marketTimes);
       
-      // Use debug times for now
-      const finalMarketTimes = debugMarketTimes;
+      const finalMarketTimes = marketTimes;
       
       // Check if it's a holiday
       if (isHoliday(now, market)) {
