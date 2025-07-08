@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rotating Asset Widget</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>"">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
-        
         * {
             margin: 0;
             padding: 0;
@@ -75,33 +74,27 @@
         }
         
         /* Asset Info Styling */
+        .asset-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
         .asset-name {
             font-size: {{ (font_size|int * 1.2)|int }}px;
             font-weight: {{ font_weight }};
             color: {{ text_color }};
-            text-align: center;
-            margin-bottom: 8px;
             letter-spacing: 0.5px;
         }
         
-        .asset-price {
-            font-size: {{ (font_size|int * 1.5)|int }}px;
-            font-weight: 700;
-            color: {{ text_color }};
-            text-align: center;
-            margin-bottom: 6px;
-            font-variant-numeric: tabular-nums;
-        }
-        
         .asset-change {
-            font-size: {{ (font_size|int * 0.9)|int }}px;
+            font-size: {{ (font_size|int * 0.8)|int }}px;
             font-weight: 600;
-            text-align: center;
-            margin-bottom: 6px;
-            padding: 4px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
             display: inline-block;
-            align-self: center;
         }
         
         .asset-change.positive {
@@ -119,20 +112,37 @@
             background: {{ neutral_color }}22;
         }
         
-        .asset-spread {
-            font-size: {{ (font_size|int * 1.1)|int }}px;
+        .asset-price {
+            font-size: {{ (font_size|int * 1.5)|int }}px;
             font-weight: 700;
+            color: {{ text_color }};
+            text-align: center;
+            margin-bottom: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .asset-spread {
+            font-size: {{ (font_size|int * 1.6)|int }}px;
+            font-weight: 800;
             color: {{ spread_color }};
             text-align: center;
-            background: {{ spread_color }}33;
-            padding: 6px 12px;
-            border-radius: 6px;
+            background: {{ spread_color }}44;
+            padding: 12px 20px;
+            border-radius: 10px;
             display: inline-block;
             align-self: center;
-            border: 2px solid {{ spread_color }}66;
-            margin-top: 4px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            letter-spacing: 0.5px;
+            border: 3px solid {{ spread_color }};
+            margin-top: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 20px {{ spread_color }}33;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
         
         /* Chart Container */
@@ -218,15 +228,19 @@
         <div class="asset-flip-container">
             <div class="asset-flipper" id="asset-flipper">
                 <div class="asset-face front" id="asset-front">
-                    <div class="asset-name" id="asset-name-front">Loading...</div>
+                    <div class="asset-header">
+                        <div class="asset-name" id="asset-name-front">Loading...</div>
+                        <div class="asset-change neutral" id="asset-change-front">-</div>
+                    </div>
                     <div class="asset-price" id="asset-price-front">-</div>
-                    <div class="asset-change neutral" id="asset-change-front">-</div>
                     <div class="asset-spread" id="asset-spread-front">Spread: -</div>
                 </div>
                 <div class="asset-face back" id="asset-back">
-                    <div class="asset-name" id="asset-name-back">Loading...</div>
+                    <div class="asset-header">
+                        <div class="asset-name" id="asset-name-back">Loading...</div>
+                        <div class="asset-change neutral" id="asset-change-back">-</div>
+                    </div>
                     <div class="asset-price" id="asset-price-back">-</div>
-                    <div class="asset-change neutral" id="asset-change-back">-</div>
                     <div class="asset-spread" id="asset-spread-back">Spread: -</div>
                 </div>
             </div>

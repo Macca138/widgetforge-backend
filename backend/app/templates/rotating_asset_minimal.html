@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Minimal Test</title>
+</head>
+<body>
+    <h1>Minimal Test Page</h1>
+    <p>If you can see this, the template system works.</p>
+    <p>Current time: <span id="time"></span></p>
+    
+    <script>
+        document.getElementById('time').textContent = new Date().toLocaleTimeString();
+        console.log('Minimal test loaded successfully');
+    </script>
+</body>
+</html>

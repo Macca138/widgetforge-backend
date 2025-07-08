@@ -461,6 +461,12 @@ async def rotating_asset_debug_widget(request: Request):
         "request": request
     })
 
+@app.get("/widgets/rotating-asset-minimal", response_class=HTMLResponse)
+async def rotating_asset_minimal_widget(request: Request):
+    return templates.TemplateResponse("rotating_asset_minimal.html", {
+        "request": request
+    })
+
 @app.get("/assets", response_class=HTMLResponse)
 async def get_assets():
     base_dir = os.path.dirname(os.path.abspath(__file__))
