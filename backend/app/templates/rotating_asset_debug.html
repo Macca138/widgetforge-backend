@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating Asset Widget Debug</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .debug-container {
+            width: 300px;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        .debug-log {
+            background: #222;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        canvas {
+            border: 1px solid #555;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h3>Debug Log</h3>
+        <div id="debug-log" class="debug-log"></div>
+        <canvas id="test-canvas" width="100" height="50"></canvas>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('debug-log');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        log('Starting debug widget...');
+
+        // Test 1: Basic canvas
+        try {
+            log('Testing canvas...');
+            const canvas = document.getElementById('test-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#00ff88';
+            ctx.fillRect(10, 10, 30, 30);
+            log('Canvas test: SUCCESS');
+        } catch (e) {
+            log('Canvas test: ERROR - ' + e.message);
+        }
+
+        // Test 2: Asset list
+        try {
+            log('Testing asset list...');
+            const MAJOR_FOREX = ['EURUSD', 'GBPUSD', 'USDJPY'];
+            const INDICES = ['US30', 'NAS100', 'SP500'];
+            const ALL_ASSETS = [...MAJOR_FOREX, ...INDICES];
+            log('Asset list: SUCCESS - ' + ALL_ASSETS.length + ' assets');
+        } catch (e) {
+            log('Asset list: ERROR - ' + e.message);
+        }
+
+        // Test 3: WebSocket (without connecting)
+        try {
+            log('Testing WebSocket availability...');
+            if (typeof WebSocket !== 'undefined') {
+                log('WebSocket: AVAILABLE');
+            } else {
+                log('WebSocket: NOT AVAILABLE');
+            }
+        } catch (e) {
+            log('WebSocket test: ERROR - ' + e.message);
+        }
+
+        // Test 4: Simple timer
+        try {
+            log('Testing timer...');
+            let counter = 0;
+            const timer = setInterval(() => {
+                counter++;
+                log('Timer tick: ' + counter);
+                if (counter >= 3) {
+                    clearInterval(timer);
+                    log('Timer test: SUCCESS');
+                }
+            }, 1000);
+        } catch (e) {
+            log('Timer test: ERROR - ' + e.message);
+        }
+
+        log('Debug widget initialized successfully');
+    </script>
+</body>
+</html>
