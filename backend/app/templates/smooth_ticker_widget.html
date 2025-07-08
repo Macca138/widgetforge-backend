@@ -285,5 +285,16 @@
     // Initialize the ticker
     const ticker = new SmoothTicker();
   </script>
+  <script>
+    // Allow background color to be set via URL (?bg= or ?background=)
+    function getQueryParam(name, defaultValue) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name) || defaultValue;
+    }
+    const bg = getQueryParam('bg', null) || getQueryParam('background', null);
+    if (bg) {
+      document.body.style.background = bg;
+    }
+  </script>
 </body>
 </html>
