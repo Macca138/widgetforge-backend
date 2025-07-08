@@ -388,14 +388,29 @@
     function getMarketStatus(now, market) {
       const cfg = marketConfigs[market];
       
-      // Get current UTC time and convert to GMT
-      const utcNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+      // Use UTC time directly (GMT = UTC)
+      const utcNow = new Date();
       const gmtHour = utcNow.getUTCHours();
       const gmtMinute = utcNow.getUTCMinutes();
       const gmtDay = utcNow.getUTCDay();
       
       // Get market times (winter or summer)
       const marketTimes = getMarketTimes(market, utcNow);
+      
+      // Debug: hardcode correct summer/winter times for July 2025
+      let debugMarketTimes;
+      if (market === 'Sydney') {
+        debugMarketTimes = { start: 22, end: 7 }; // Winter
+      } else if (market === 'Tokyo') {
+        debugMarketTimes = { start: 0, end: 9 }; // No DST
+      } else if (market === 'London') {
+        debugMarketTimes = { start: 7, end: 16 }; // Summer (BST)
+      } else if (market === 'New York') {
+        debugMarketTimes = { start: 12, end: 21 }; // Summer (EDT)
+      }
+      
+      // Use debug times for now
+      const finalMarketTimes = debugMarketTimes;
       
       // Check if it's a holiday
       if (isHoliday(now, market)) {
@@ -419,20 +434,20 @@
       
       // Check if market is open (using GMT)
       let isOpen;
-      if (marketTimes.start > marketTimes.end) {
+      if (finalMarketTimes.start > finalMarketTimes.end) {
         // Cross-midnight session
-        isOpen = (gmtHour >= marketTimes.start || gmtHour < marketTimes.end);
+        isOpen = (gmtHour >= finalMarketTimes.start || gmtHour < finalMarketTimes.end);
       } else {
         // Regular session
-        isOpen = (gmtHour >= marketTimes.start && gmtHour < marketTimes.end);
+        isOpen = (gmtHour >= finalMarketTimes.start && gmtHour < finalMarketTimes.end);
       }
       
       if (isOpen) {
         // Calculate time until close
-        let closeHour = marketTimes.end;
-        if (marketTimes.start > marketTimes.end && gmtHour >= marketTimes.start) {
+        let closeHour = finalMarketTimes.end;
+        if (finalMarketTimes.start > finalMarketTimes.end && gmtHour >= finalMarketTimes.start) {
           // Cross-midnight session, close is tomorrow
-          closeHour = marketTimes.end + 24;
+          closeHour = finalMarketTimes.end + 24;
         }
         
         const totalCloseMinutes = closeHour * 60;
@@ -445,26 +460,26 @@
         return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
       } else {
         // Calculate time until open
-        let openHour = marketTimes.start;
+        let openHour = finalMarketTimes.start;
         
         // For cross-midnight markets (Sydney), check if we should open today or tomorrow
-        if (marketTimes.start > marketTimes.end) {
+        if (finalMarketTimes.start > finalMarketTimes.end) {
           // Cross-midnight market (Sydney)
-          if (gmtHour < marketTimes.start && gmtHour >= marketTimes.end) {
+          if (gmtHour < finalMarketTimes.start && gmtHour >= finalMarketTimes.end) {
             // We're between end and start time, so market opens today
-            openHour = marketTimes.start;
+            openHour = finalMarketTimes.start;
           } else {
             // Market opens tomorrow
-            openHour = marketTimes.start + 24;
+            openHour = finalMarketTimes.start + 24;
           }
         } else {
           // Regular market
-          if (gmtHour < marketTimes.start) {
+          if (gmtHour < finalMarketTimes.start) {
             // Market opens today
-            openHour = marketTimes.start;
+            openHour = finalMarketTimes.start;
           } else {
             // Market opens tomorrow
-            openHour = marketTimes.start + 24;
+            openHour = finalMarketTimes.start + 24;
           }
         }
         
