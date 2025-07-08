@@ -120,10 +120,19 @@
         }
         
         .asset-spread {
-            font-size: {{ (font_size|int * 0.8)|int }}px;
-            font-weight: 500;
-            color: {{ text_color }}CC;
+            font-size: {{ (font_size|int * 1.1)|int }}px;
+            font-weight: 700;
+            color: {{ spread_color }};
             text-align: center;
+            background: {{ spread_color }}33;
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            align-self: center;
+            border: 2px solid {{ spread_color }}66;
+            margin-top: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            letter-spacing: 0.5px;
         }
         
         /* Chart Container */
@@ -245,10 +254,7 @@
             const nextIndex = (currentAssetIndex + 1) % ALL_ASSETS.length;
             const nextAsset = ALL_ASSETS[nextIndex];
             
-            // Load data for next asset
-            loadAssetData(nextAsset);
-            
-            // Perform flip animation
+            // Perform flip animation (this will load data for next asset)
             flipToAsset(nextAsset);
             
             currentAssetIndex = nextIndex;
@@ -260,11 +266,14 @@
             isFlipping = true;
             const flipper = document.getElementById('asset-flipper');
             
+            // Load data for the new asset first
+            loadAssetData(asset);
+            
             // Update the hidden face with new asset data
             const targetFace = flipState ? 'front' : 'back';
             updateAssetFace(targetFace, asset);
             
-            // Perform flip
+            // Perform flip animation
             if (flipState) {
                 flipper.classList.remove('flipping');
             } else {
@@ -275,7 +284,7 @@
             
             setTimeout(() => {
                 isFlipping = false;
-                // Update chart for new asset
+                // Update chart for new asset after flip completes
                 loadChartData(asset);
             }, 800);
         }

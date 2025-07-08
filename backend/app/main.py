@@ -446,6 +446,7 @@ async def rotating_asset_widget(request: Request):
         "up_color": params.get("upColor", "#00ff88"),
         "down_color": params.get("downColor", "#ff4444"),
         "neutral_color": params.get("neutralColor", "#cccccc"),
+        "spread_color": params.get("spreadColor", "#00ffff"),
     })
 
 @app.get("/assets", response_class=HTMLResponse)
