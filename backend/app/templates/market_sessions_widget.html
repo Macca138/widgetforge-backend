@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=600, initial-scale=1.0">
   <title>Market Sessions Widget</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
     body {
       margin: 0;
       padding: 0;
+      font-family: 'Roboto', Arial, sans-serif;
     }
     .session-widget-container {
       width: 100%;
@@ -17,7 +18,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 24px;
+      padding: 0 20px;
       box-sizing: border-box;
       margin: 8px 0;
     }
@@ -34,7 +35,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-width: 90px;
+      min-width: 95px;
       height: 100%;
       text-align: center;
       padding: 0 8px;
@@ -75,7 +76,7 @@
       flex-direction: column;
       align-items: flex-end;
       justify-content: center;
-      min-width: 120px;
+      min-width: 100px;
       height: 100%;
       position: relative;
     }
@@ -83,12 +84,12 @@
       color: {{ clock_color }};
       font-size: {{ (font_size|int * 0.9)|int }}px;
       font-weight: {{ font_weight }};
-      margin-bottom: 2px;
-      text-align: right;
+      margin-bottom: 0px;
+      text-align: center;
     }
     .clock-time {
       color: {{ font_color }};
-      font-size: {{ (font_size|int * 1.7)|int }}px;
+      font-size: {{ (font_size|int * 1.5)|int }}px;
       font-weight: {{ font_weight }};
       letter-spacing: 1px;
       text-align: right;
@@ -122,7 +123,7 @@
       flex-direction: column;
       align-items: flex-end;
       justify-content: center;
-      text-align: right;
+      text-align: center;
     }
     .clock-face.front {
       transform: rotateX(0deg);
@@ -130,17 +131,22 @@
     .clock-face.back {
       transform: rotateX(180deg);
     }
+    .clock-label, .clock-time {
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
     @media (max-width: 600px) {
       .session-widget-container { padding: 0 8px; }
-      .sessions { gap: 8px; }
-      .session { min-width: 70px; }
+      .sessions { gap: 6px; }
+      .session { min-width: 80px; }
       .clock { min-width: 80px; }
       .clock-time { font-size: 20px; }
     }
   </style>
 </head>
 <body>
-  <div class="session-widget-container" style="background: {{ bg_color }}{{ bg_opacity }}; font-family: '{{ font }}', Arial, sans-serif; border-radius: {{ border_radius }}px;">
+  <div class="session-widget-container" style="background: transparent; font-family: '{{ font }}', Roboto, sans-serif; border-radius: {{ border_radius }}px;">
     <div class="sessions" id="sessions"></div>
     <div class="clock">
       <div class="clock-flip-container">

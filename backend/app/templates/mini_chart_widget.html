@@ -275,56 +275,66 @@
                 const firstPrice = this.prices[0];
                 const lastPrice = this.prices[this.prices.length - 1];
                 const lineColor = lastPrice >= firstPrice ? config.upColor : config.downColor;
-                
-                // Draw filled area
-                ctx.beginPath();
-                ctx.moveTo(0, height);
-                
-                this.prices.forEach((price, i) => {
+
+                // Helper for Bézier smoothing
+                function getControlPoints(x0, y0, x1, y1, x2, y2, t) {
+                    const d01 = Math.hypot(x1 - x0, y1 - y0);
+                    const d12 = Math.hypot(x2 - x1, y2 - y1);
+                    const fa = t * d01 / (d01 + d12);
+                    const fb = t - fa;
+                    const p1x = x1 + fa * (x0 - x2);
+                    const p1y = y1 + fa * (y0 - y2);
+                    const p2x = x1 - fb * (x0 - x2);
+                    const p2y = y1 - fb * (y0 - y2);
+                    return [p1x, p1y, p2x, p2y];
+                }
+                const t = 0.2; // tension for smoothing
+
+                // Prepare points
+                const points = this.prices.map((price, i) => {
                     const x = (i / (this.prices.length - 1)) * width;
                     const y = height - ((price - yMin) / yRange) * height;
-                    
-                    if (i === 0) {
-                        ctx.lineTo(0, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
+                    return { x, y };
                 });
-                
-                ctx.lineTo(width, height);
+
+                // Draw filled area (smoothed)
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, height);
+                ctx.lineTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    const p0 = points[i - 1];
+                    const p1 = points[i];
+                    const p2 = points[i + 1] || p1;
+                    const [cp1x, cp1y, cp2x, cp2y] = getControlPoints(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, t);
+                    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+                }
+                ctx.lineTo(points[points.length - 1].x, height);
                 ctx.closePath();
-                
                 // Create gradient fill
                 const gradient = ctx.createLinearGradient(0, 0, 0, height);
                 gradient.addColorStop(0, lineColor + '40');
                 gradient.addColorStop(1, lineColor + '05');
                 ctx.fillStyle = gradient;
                 ctx.fill();
-                
-                // Draw line
+
+                // Draw smoothed line
                 ctx.beginPath();
                 ctx.strokeStyle = lineColor;
                 ctx.lineWidth = 2;
-                
-                this.prices.forEach((price, i) => {
-                    const x = (i / (this.prices.length - 1)) * width;
-                    const y = height - ((price - yMin) / yRange) * height;
-                    
-                    if (i === 0) {
-                        ctx.moveTo(x, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
-                });
-                
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    const p0 = points[i - 1];
+                    const p1 = points[i];
+                    const p2 = points[i + 1] || p1;
+                    const [cp1x, cp1y, cp2x, cp2y] = getControlPoints(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, t);
+                    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+                }
                 ctx.stroke();
-                
+
                 // Draw current price dot
-                const lastX = width;
-                const lastY = height - ((lastPrice - yMin) / yRange) * height;
-                
+                const last = points[points.length - 1];
                 ctx.beginPath();
-                ctx.arc(lastX - 3, lastY, 3, 0, Math.PI * 2);
+                ctx.arc(last.x - 3, last.y, 3, 0, Math.PI * 2);
                 ctx.fillStyle = lineColor;
                 ctx.fill();
             }
