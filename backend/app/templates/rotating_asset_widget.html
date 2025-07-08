@@ -190,12 +190,13 @@
     </div>
 
     <script>
-        // Asset list configuration
+        // Asset list configuration - matching actual MT5 symbols from symbols.txt
         const MAJOR_FOREX = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD'];
-        const INDICES = ['US30', 'US500', 'NAS100', 'UK100', 'GER40', 'FRA40', 'JPN225'];
-        const COMMODITIES = ['XAUUSD', 'XAGUSD', 'USOIL', 'UKOIL'];
+        const INDICES = ['US30', 'NAS100', 'SP500', 'DAX40', 'UK100'];  // Updated to match actual symbols
+        const COMMODITIES = ['XAUUSD', 'XAGUSD', 'XTIUSD', 'XBRUSD'];  // Updated: XTIUSD=oil, XBRUSD=brent
+        const CRYPTO = ['BTCUSD', 'ETHUSD'];  // Added crypto from your symbols
         
-        const ALL_ASSETS = [...MAJOR_FOREX, ...INDICES, ...COMMODITIES];
+        const ALL_ASSETS = [...MAJOR_FOREX, ...INDICES, ...COMMODITIES, ...CRYPTO];
         
         let currentAssetIndex = 0;
         let flipState = false;
@@ -306,7 +307,7 @@
             // Generate realistic sample data based on asset type
             let basePrice, spreadRange;
             
-            if (asset.includes('USD') || asset.includes('EUR') || asset.includes('GBP')) {
+            if (asset.includes('USD') || asset.includes('EUR') || asset.includes('GBP') || asset.includes('CHF') || asset.includes('CAD') || asset.includes('AUD') || asset.includes('NZD')) {
                 // Forex pairs
                 basePrice = Math.random() * 0.5 + 1.0;
                 spreadRange = [0.5, 3.0];
@@ -314,10 +315,14 @@
                 // Precious metals
                 basePrice = asset.includes('XAU') ? Math.random() * 100 + 1900 : Math.random() * 5 + 20;
                 spreadRange = [1.0, 5.0];
-            } else if (asset.includes('OIL')) {
-                // Oil
+            } else if (asset.includes('XTI') || asset.includes('XBR')) {
+                // Oil (WTI and Brent)
                 basePrice = Math.random() * 20 + 60;
                 spreadRange = [2.0, 8.0];
+            } else if (asset.includes('BTC') || asset.includes('ETH')) {
+                // Cryptocurrency
+                basePrice = asset.includes('BTC') ? Math.random() * 10000 + 40000 : Math.random() * 500 + 2000;
+                spreadRange = [5.0, 50.0];
             } else {
                 // Indices
                 basePrice = Math.random() * 1000 + 30000;
@@ -405,21 +410,26 @@
                 
                 ws.onmessage = function(event) {
                     try {
-                        const data = JSON.parse(event.data);
-                        // Update price data when received
-                        if (data.symbol && ALL_ASSETS.includes(data.symbol)) {
-                            priceData[data.symbol] = {
-                                price: data.price,
-                                changePercent: parseFloat(data.changePercent) || 0,
-                                spread: data.spread || '-'
-                            };
-                            
-                            // Update display if this is the current asset
-                            const currentAsset = ALL_ASSETS[currentAssetIndex];
-                            if (data.symbol === currentAsset) {
-                                const currentFace = flipState ? 'back' : 'front';
-                                updateAssetFace(currentFace, currentAsset);
-                            }
+                        const payload = JSON.parse(event.data);
+                        // WebSocket sends an array of price objects
+                        if (Array.isArray(payload)) {
+                            payload.forEach(data => {
+                                if (data.symbol && ALL_ASSETS.includes(data.symbol)) {
+                                    priceData[data.symbol] = {
+                                        price: data.price,
+                                        changePercent: parseFloat(data.change_pct) || 0,  // Note: change_pct from WebSocket
+                                        spread: data.spread || '-'
+                                    };
+                                    
+                                    // Update display if this is the current asset
+                                    const currentAsset = ALL_ASSETS[currentAssetIndex];
+                                    if (data.symbol === currentAsset) {
+                                        const currentFace = flipState ? 'back' : 'front';
+                                        updateAssetFace(currentFace, currentAsset);
+                                    }
+                                }
+                            });
+                            console.log(`Received price updates for ${payload.length} symbols`);
                         }
                     } catch (e) {
                         console.error('Error parsing price data:', e);
