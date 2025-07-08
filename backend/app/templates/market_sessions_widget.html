@@ -164,19 +164,35 @@
     </div>
   </div>
   <script>
-    // Market configs with times in UK time (GMT/BST)
+    // Market configs with times in GMT, accounting for DST shifts
     const marketConfigs = {
       Sydney: {
-        start: 22, end: 7, timezone: 10, dst: { start: '10-02', end: '04-02', offset: 1 }
+        // Winter: 22:00-07:00 GMT, Summer: 21:00-06:00 GMT (AEDT)
+        winter: { start: 22, end: 7 },
+        summer: { start: 21, end: 6 },
+        timezone: 10,
+        dst: { start: '10-02', end: '04-02', offset: 1 }
       },
       Tokyo: {
-        start: 0, end: 9, timezone: 9, dst: { start: '', end: '', offset: 0 }
+        // No DST: always 00:00-09:00 GMT
+        winter: { start: 0, end: 9 },
+        summer: { start: 0, end: 9 },
+        timezone: 9,
+        dst: { start: '', end: '', offset: 0 }
       },
       London: {
-        start: 8, end: 17, timezone: 0, dst: { start: '03-30', end: '10-27', offset: 1 }
+        // Winter: 08:00-17:00 GMT, Summer: 07:00-16:00 GMT (BST)
+        winter: { start: 8, end: 17 },
+        summer: { start: 7, end: 16 },
+        timezone: 0,
+        dst: { start: '03-30', end: '10-27', offset: 1 }
       },
       'New York': {
-        start: 13, end: 22, timezone: -5, dst: { start: '03-09', end: '11-02', offset: 1 }
+        // Winter: 13:00-22:00 GMT, Summer: 12:00-21:00 GMT (EDT)
+        winter: { start: 13, end: 22 },
+        summer: { start: 12, end: 21 },
+        timezone: -5,
+        dst: { start: '03-09', end: '11-02', offset: 1 }
       }
     };
     // Static holidays that don't change or are irregular
@@ -265,6 +281,37 @@
       return new Date(year, month - 1, day);
     }
     function pad(n) { return n < 10 ? '0' + n : n; }
+    
+    function isMarketInSummerTime(market, date) {
+      const cfg = marketConfigs[market];
+      if (!cfg.dst.start || !cfg.dst.end) return false;
+      
+      const year = date.getUTCFullYear();
+      
+      // Parse DST dates (MM-DD format)
+      const [startMonth, startDay] = cfg.dst.start.split('-').map(Number);
+      const [endMonth, endDay] = cfg.dst.end.split('-').map(Number);
+      
+      // Create DST start and end dates
+      const dstStart = new Date(Date.UTC(year, startMonth - 1, startDay));
+      const dstEnd = new Date(Date.UTC(year, endMonth - 1, endDay));
+      
+      // Convert input date to UTC for comparison
+      const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      
+      if (dstStart < dstEnd) {
+        // Northern hemisphere DST
+        return utcDate >= dstStart && utcDate < dstEnd;
+      } else {
+        // Southern hemisphere DST (Sydney)
+        return utcDate >= dstStart || utcDate < dstEnd;
+      }
+    }
+    
+    function getMarketTimes(market, date) {
+      const cfg = marketConfigs[market];
+      return isMarketInSummerTime(market, date) ? cfg.summer : cfg.winter;
+    }
     function getDstOffset(market, date) {
       const cfg = marketConfigs[market];
       if (!cfg.dst.start || !cfg.dst.end) return 0;
@@ -299,10 +346,13 @@
     function getMarketStatus(now, market) {
       const cfg = marketConfigs[market];
       
-      // Get UK time (convert from UTC to UK time)
-      const ukTime = new Date(now.getTime() + (isDST(now) ? 1 : 0) * 60 * 60 * 1000);
-      const ukHour = ukTime.getUTCHours();
-      const ukDay = ukTime.getUTCDay();
+      // Get current time in GMT (Greenwich Mean Time)
+      const gmtTime = new Date(now.toLocaleString("en-US", {timeZone: "GMT"}));
+      const gmtHour = gmtTime.getHours();
+      const gmtDay = gmtTime.getDay();
+      
+      // Get market times (winter or summer)
+      const marketTimes = getMarketTimes(market, gmtTime);
       
       // Check if it's a holiday
       if (isHoliday(now, market)) {
@@ -314,7 +364,7 @@
       }
       
       // Check if it's weekend
-      const isWeekendNow = (ukDay === 6) || (ukDay === 0) || (ukDay === 5 && ukHour >= 17);
+      const isWeekendNow = (gmtDay === 6) || (gmtDay === 0) || (gmtDay === 5 && gmtHour >= 17);
       
       if (isWeekendNow) {
         const nextOpen = getNextOpenTime(now, market);
@@ -324,34 +374,34 @@
         return { open: false, status: `Weekend - Opens in ${diffH}h ${pad(diffM)}m` };
       }
       
-      // Check if market is open (using UK time)
+      // Check if market is open (using GMT)
       let isOpen;
-      if (cfg.start > cfg.end) {
+      if (marketTimes.start > marketTimes.end) {
         // Cross-midnight session
-        isOpen = (ukHour >= cfg.start || ukHour < cfg.end);
+        isOpen = (gmtHour >= marketTimes.start || gmtHour < marketTimes.end);
       } else {
         // Regular session
-        isOpen = (ukHour >= cfg.start && ukHour < cfg.end);
+        isOpen = (gmtHour >= marketTimes.start && gmtHour < marketTimes.end);
       }
       
       if (isOpen) {
-        // Calculate time until close
-        let closeTime = new Date(ukTime);
-        if (cfg.start > cfg.end && ukHour < cfg.end) {
+        // Calculate time until close in GMT
+        let closeTimeGMT = new Date(now.toLocaleString("en-US", {timeZone: "GMT"}));
+        if (marketTimes.start > marketTimes.end && gmtHour < marketTimes.end) {
           // Already past midnight
-          closeTime.setUTCHours(cfg.end, 0, 0, 0);
-        } else if (cfg.start > cfg.end && ukHour >= cfg.start) {
+          closeTimeGMT.setHours(marketTimes.end, 0, 0, 0);
+        } else if (marketTimes.start > marketTimes.end && gmtHour >= marketTimes.start) {
           // Before midnight, close is tomorrow
-          closeTime.setUTCDate(closeTime.getUTCDate() + 1);
-          closeTime.setUTCHours(cfg.end, 0, 0, 0);
+          closeTimeGMT.setDate(closeTimeGMT.getDate() + 1);
+          closeTimeGMT.setHours(marketTimes.end, 0, 0, 0);
         } else {
           // Regular session
-          closeTime.setUTCHours(cfg.end, 0, 0, 0);
+          closeTimeGMT.setHours(marketTimes.end, 0, 0, 0);
         }
         
-        // Convert back to UTC
-        const closeUTC = new Date(closeTime.getTime() - (isDST(closeTime) ? 1 : 0) * 60 * 60 * 1000);
-        const diffMs = closeUTC - now;
+        // Convert close time from GMT to local time
+        const closeLocal = new Date(closeTimeGMT.toLocaleString("en-US", {timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}));
+        const diffMs = closeLocal - now;
         const diffH = Math.floor(diffMs / (1000 * 60 * 60));
         const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         return { open: true, status: `Closes in ${diffH}h ${pad(diffM)}m` };
@@ -379,36 +429,43 @@
     function getNextOpenTime(now, market) {
       const cfg = marketConfigs[market];
       
-      // Get UK time
-      const ukTime = new Date(now.getTime() + (isDST(now) ? 1 : 0) * 60 * 60 * 1000);
+      // Get GMT time
+      const gmtTime = new Date(now.toLocaleString("en-US", {timeZone: "GMT"}));
       
       // Start from current time and find next opening
-      let testDate = new Date(ukTime);
+      let testDate = new Date(gmtTime);
+      
+      // Get market times for today
+      const todayMarketTimes = getMarketTimes(market, gmtTime);
       
       // First check if market opens later today
-      let todayOpen = new Date(ukTime);
-      todayOpen.setUTCHours(cfg.start, 0, 0, 0);
+      let todayOpen = new Date(gmtTime);
+      todayOpen.setHours(todayMarketTimes.start, 0, 0, 0);
       
       // If it's still today and market hasn't opened yet
-      if (todayOpen > ukTime && todayOpen.getUTCDay() >= 1 && todayOpen.getUTCDay() <= 5) {
-        const testUTC = new Date(todayOpen.getTime() - (isDST(todayOpen) ? 1 : 0) * 60 * 60 * 1000);
-        if (!isHoliday(testUTC, market)) {
-          return testUTC;
+      if (todayOpen > gmtTime && todayOpen.getDay() >= 1 && todayOpen.getDay() <= 5) {
+        // Convert back to local time
+        const todayOpenLocal = new Date(todayOpen.toLocaleString("en-US", {timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}));
+        if (!isHoliday(todayOpenLocal, market)) {
+          return todayOpenLocal;
         }
       }
       
       // Find next Monday (or Sunday for Sydney)
       let daysToAdd = 1;
       while (daysToAdd <= 7) {
-        testDate = new Date(ukTime);
-        testDate.setUTCDate(testDate.getUTCDate() + daysToAdd);
-        testDate.setUTCHours(cfg.start, 0, 0, 0);
+        testDate = new Date(gmtTime);
+        testDate.setDate(testDate.getDate() + daysToAdd);
         
-        const testDay = testDate.getUTCDay();
+        // Get market times for this future date
+        const futureMarketTimes = getMarketTimes(market, testDate);
+        testDate.setHours(futureMarketTimes.start, 0, 0, 0);
+        
+        const testDay = testDate.getDay();
         let isValidDay = false;
         
         if (market === 'Sydney') {
-          // Sydney opens Sunday 22:00 UK time
+          // Sydney opens Sunday
           isValidDay = (testDay === 0);
         } else {
           // All other markets open Monday-Friday
@@ -416,12 +473,12 @@
         }
         
         if (isValidDay) {
-          // Convert back to UTC
-          const testUTC = new Date(testDate.getTime() - (isDST(testDate) ? 1 : 0) * 60 * 60 * 1000);
+          // Convert back to local time
+          const testLocal = new Date(testDate.toLocaleString("en-US", {timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone}));
           
           // Check if it's a holiday
-          if (!isHoliday(testUTC, market)) {
-            return testUTC;
+          if (!isHoliday(testLocal, market)) {
+            return testLocal;
           }
         }
         
@@ -430,7 +487,8 @@
       
       // Fallback - return next Monday at market open time
       const fallback = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      fallback.setUTCHours(cfg.start, 0, 0, 0);
+      const fallbackMarketTimes = getMarketTimes(market, fallback);
+      fallback.setHours(fallbackMarketTimes.start, 0, 0, 0);
       return fallback;
     }
 
