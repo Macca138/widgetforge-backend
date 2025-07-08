@@ -287,25 +287,67 @@
       if (!cfg.dst.start || !cfg.dst.end) return false;
       
       const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
+      const day = date.getUTCDate();
       
-      // Parse DST dates (MM-DD format)
-      const [startMonth, startDay] = cfg.dst.start.split('-').map(Number);
-      const [endMonth, endDay] = cfg.dst.end.split('-').map(Number);
+      // Calculate DST dates properly for each market
+      let dstStart, dstEnd;
       
-      // Create DST start and end dates
-      const dstStart = new Date(Date.UTC(year, startMonth - 1, startDay));
-      const dstEnd = new Date(Date.UTC(year, endMonth - 1, endDay));
-      
-      // Convert input date to UTC for comparison
-      const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-      
-      if (dstStart < dstEnd) {
-        // Northern hemisphere DST
-        return utcDate >= dstStart && utcDate < dstEnd;
+      if (market === 'London') {
+        // Last Sunday in March to last Sunday in October
+        dstStart = getLastSundayOfMonth(year, 3);
+        dstEnd = getLastSundayOfMonth(year, 10);
+      } else if (market === 'New York') {
+        // Second Sunday in March to first Sunday in November
+        dstStart = getNthSundayOfMonth(year, 3, 2);
+        dstEnd = getNthSundayOfMonth(year, 11, 1);
+      } else if (market === 'Sydney') {
+        // First Sunday in October to first Sunday in April (next year)
+        // Need to handle year boundary properly
+        if (month >= 10) {
+          // Oct-Dec: current year Oct to next year Apr
+          dstStart = getNthSundayOfMonth(year, 10, 1);
+          dstEnd = getNthSundayOfMonth(year + 1, 4, 1);
+        } else {
+          // Jan-Sep: previous year Oct to current year Apr
+          dstStart = getNthSundayOfMonth(year - 1, 10, 1);
+          dstEnd = getNthSundayOfMonth(year, 4, 1);
+        }
       } else {
-        // Southern hemisphere DST (Sydney)
-        return utcDate >= dstStart || utcDate < dstEnd;
+        return false;
       }
+      
+      const currentDate = new Date(Date.UTC(year, month - 1, day));
+      
+      if (market === 'Sydney') {
+        // Southern hemisphere - DST spans across year boundary
+        // Only in DST if we're in the period from start to end
+        if (month >= 10) {
+          // Oct-Dec: check if we're after start date
+          return currentDate >= dstStart;
+        } else {
+          // Jan-Sep: check if we're before end date
+          return currentDate < dstEnd;
+        }
+      } else {
+        // Northern hemisphere
+        return currentDate >= dstStart && currentDate < dstEnd;
+      }
+    }
+    
+    function getNthSundayOfMonth(year, month, n) {
+      const firstDay = new Date(Date.UTC(year, month - 1, 1));
+      const firstSunday = new Date(firstDay);
+      firstSunday.setUTCDate(1 + (7 - firstDay.getUTCDay()) % 7);
+      firstSunday.setUTCDate(firstSunday.getUTCDate() + (n - 1) * 7);
+      return firstSunday;
+    }
+    
+    function getLastSundayOfMonth(year, month) {
+      const lastDay = new Date(Date.UTC(year, month, 0)); // Last day of month
+      const lastSunday = new Date(lastDay);
+      lastSunday.setUTCDate(lastDay.getUTCDate() - lastDay.getUTCDay());
+      return lastSunday;
     }
     
     function getMarketTimes(market, date) {
