@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timezone
 import feedparser
 import requests
+import email.utils
 from diskcache import Cache
 from ..services.cache_service import cache
 
@@ -77,10 +78,11 @@ class RSSService:
             return None
             
         try:
-            # Parse RFC 2822 date format
-            parsed_date = feedparser._parse_date(date_str)
+            # Parse RFC 2822 date format using email.utils
+            parsed_date = email.utils.parsedate_tz(date_str)
             if parsed_date:
-                return datetime(*parsed_date[:6], tzinfo=timezone.utc)
+                timestamp = email.utils.mktime_tz(parsed_date)
+                return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         except Exception as e:
             logger.warning(f"Could not parse date '{date_str}': {e}")
             
@@ -120,6 +122,106 @@ class RSSService:
             return f"{minutes}m ago"
         else:
             return "Just now"
+
+    def cross_reference_with_calendar(self, news_items: List[Dict], calendar_events: List[Dict]) -> List[Dict]:
+        """Cross-reference news items with calendar events to find related events"""
+        enhanced_news = []
+        
+        for news_item in news_items:
+            enhanced_item = news_item.copy()
+            news_title = news_item.get('title', '').lower()
+            
+            # Look for related economic events
+            for event in calendar_events:
+                event_title = event.get('title', '').lower()
+                event_country = event.get('country', '').lower()
+                
+                # Check if news matches this event
+                if self._is_news_event_match(news_title, event_title, event_country):
+                    enhanced_item['related_event'] = {
+                        'title': event.get('title', ''),
+                        'country': event.get('country', ''),
+                        'forecast': event.get('forecast', ''),
+                        'previous': event.get('previous', ''),
+                        'impact': event.get('impact', '')
+                    }
+                    break
+            
+            enhanced_news.append(enhanced_item)
+        
+        return enhanced_news
+    
+    def _is_news_event_match(self, news_title: str, event_title: str, event_country: str) -> bool:
+        """Check if news item matches an economic calendar event"""
+        # Currency/country mappings
+        currency_mappings = {
+            'usd': ['us', 'usa', 'united states', 'american', 'dollar'],
+            'eur': ['eu', 'euro', 'european', 'eurozone'],  
+            'gbp': ['uk', 'british', 'britain', 'england', 'pound'],
+            'jpy': ['japan', 'japanese', 'yen'],
+            'aud': ['australia', 'australian', 'aussie'],
+            'cad': ['canada', 'canadian', 'cad'],
+            'chf': ['swiss', 'switzerland', 'franc'],
+            'nzd': ['new zealand', 'nz', 'kiwi']
+        }
+        
+        # Check if news mentions the country/currency
+        country_mentioned = False
+        if event_country in currency_mappings:
+            country_terms = currency_mappings[event_country]
+            if any(term in news_title for term in country_terms):
+                country_mentioned = True
+        
+        if not country_mentioned:
+            return False
+        
+        # Economic indicator matching
+        specific_mappings = {
+            'employment change': ['employment change', 'jobs'],
+            'unemployment rate': ['unemployment rate'],
+            'gdp': ['gdp', 'gross domestic product'],
+            'inflation': ['inflation', 'cpi', 'consumer price'],
+            'interest rate': ['interest rate', 'rate decision'],
+            'retail sales': ['retail sales'],
+            'manufacturing': ['manufacturing', 'pmi'],
+            'trade balance': ['trade balance'],
+            'building permits': ['building permits'],
+            'housing': ['housing', 'home sales']
+        }
+        
+        # Check for indicator matches
+        for indicator, terms in specific_mappings.items():
+            if indicator in event_title:
+                if any(term in news_title for term in terms):
+                    return True
+        
+        return False
+
+    def _extract_actual_from_news_title(self, title: str) -> Optional[str]:
+        """Extract actual result value from news title"""
+        try:
+            import re
+            
+            # Look for patterns like "Actual 83.1k", "Actual: 83.1k", "Actual 2.5%"
+            actual_patterns = [
+                r'actual[:\s]+([^\s\(]+)',  # "Actual 83.1k" or "Actual: 83.1k"
+                r'actual[:\s]+([^,\(]+)',   # "Actual 83.1k (Forecast..."
+            ]
+            
+            title_lower = title.lower()
+            for pattern in actual_patterns:
+                match = re.search(pattern, title_lower)
+                if match:
+                    actual_value = match.group(1).strip()
+                    # Clean up common trailing characters
+                    actual_value = actual_value.rstrip('.,;')
+                    return actual_value
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract actual from title '{title}': {e}")
+            return None
 
 # Global instance
 rss_service = RSSService()
