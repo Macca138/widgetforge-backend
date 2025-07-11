@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter&family=Roboto&family=Open+Sans&family=Lato&family=Montserrat&family=Oswald&family=Source+Sans+Pro&display=swap');
+
+        body {
+            margin: 0;
+            padding: {{ padding | default('10') }}px;
+            background-color: {{ bg_color | default('#1e222d') }};
+            color: {{ font_color | default('#b2b5be') }};
+            font-family: '{{ font | default('Inter') }}', sans-serif;
+            font-size: {{ font_size | default('14') }}px;
+            line-height: 1.4;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: {{ height | default('400') }}px;
+            width: {{ width | default('100%') }};
+            box-sizing: border-box;
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid {{ accent_color | default('#4a5568') }};
+        }
+
+        .widget-title {
+            font-size: {{ title_font_size | default('18') }}px;
+            font-weight: bold;
+            color: {{ title_color | default('#ffffff') }};
+            margin: 0;
+        }
+
+        .last-updated {
+            font-size: {{ small_font_size | default('12') }}px;
+            color: {{ secondary_color | default('#888') }};
+            opacity: 0.7;
+        }
+
+        .news-container {
+            display: flex;
+            flex-direction: column;
+            gap: {{ item_spacing | default('8') }}px;
+            max-height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+
+        .news-item {
+            padding: {{ item_padding | default('12') }}px;
+            border-radius: {{ border_radius | default('6') }}px;
+            background-color: {{ item_bg_color | default('#2d3748') }};
+            border-left: 4px solid {{ normal_color | default('#4a90e2') }};
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .news-item:hover {
+            background-color: {{ hover_color | default('#374151') }};
+            transform: translateX(2px);
+        }
+
+        .news-item.high-impact {
+            border-left-color: {{ high_impact_color | default('#e53e3e') }};
+            background-color: {{ high_impact_bg | default('#4a1f1f') }};
+        }
+
+        .news-item.high-impact .news-title {
+            color: {{ high_impact_text_color | default('#ff6b6b') }};
+        }
+
+        .news-title {
+            font-size: {{ news_title_size | default('14') }}px;
+            font-weight: {{ title_weight | default('600') }};
+            color: {{ news_title_color | default('#ffffff') }};
+            margin: 0 0 6px 0;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
+
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: {{ meta_font_size | default('11') }}px;
+            color: {{ meta_color | default('#999') }};
+            margin-top: 8px;
+        }
+
+        .news-time {
+            font-weight: 500;
+        }
+
+        .news-source {
+            opacity: 0.8;
+        }
+
+        .high-impact-badge {
+            background-color: {{ high_impact_color | default('#e53e3e') }};
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: {{ badge_font_size | default('10') }}px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: {{ secondary_color | default('#888') }};
+        }
+
+        .error {
+            text-align: center;
+            padding: 20px;
+            color: {{ error_color | default('#e53e3e') }};
+        }
+
+        /* Scrollbar styling */
+        .news-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .news-container::-webkit-scrollbar-track {
+            background: {{ bg_color | default('#1e222d') }};
+        }
+
+        .news-container::-webkit-scrollbar-thumb {
+            background: {{ accent_color | default('#4a5568') }};
+            border-radius: 3px;
+        }
+
+        .news-container::-webkit-scrollbar-thumb:hover {
+            background: {{ hover_color | default('#374151') }};
+        }
+
+        /* Animation for new items */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .news-item.new {
+            animation: slideIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-header">
+        <h2 class="widget-title">{{ title | default('Financial Juice News') }}</h2>
+        <span class="last-updated" id="lastUpdated">Loading...</span>
+    </div>
+    
+    <div class="news-container" id="newsContainer">
+        <div class="loading">Loading news...</div>
+    </div>
+
+    <script>
+        const config = {
+            maxItems: {{ max_items | default(20) }},
+            refreshInterval: {{ refresh_interval | default(60) }} * 1000, // Convert to milliseconds
+            showHighImpactBadge: {{ show_high_impact_badge | default('true') | lower }},
+            openLinksInNewTab: {{ open_links_new_tab | default('true') | lower }},
+            animateNewItems: {{ animate_new_items | default('true') | lower }}
+        };
+
+        let currentNewsIds = new Set();
+        let isLoading = false;
+
+        async function fetchNews() {
+            if (isLoading) return;
+            isLoading = true;
+
+            try {
+                const response = await fetch(`/api/rss/financial-juice?max_items=${config.maxItems}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayNews(data.data);
+                    updateLastUpdated();
+                } else {
+                    showError('Failed to load news: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        function displayNews(newsItems) {
+            const container = document.getElementById('newsContainer');
+            
+            if (newsItems.length === 0) {
+                container.innerHTML = '<div class="error">No news items available</div>';
+                return;
+            }
+
+            // Clear container
+            container.innerHTML = '';
+
+            // Create news items
+            newsItems.forEach((item, index) => {
+                const newsElement = createNewsElement(item);
+                container.appendChild(newsElement);
+
+                // Add animation for new items
+                if (config.animateNewItems && !currentNewsIds.has(item.guid)) {
+                    newsElement.classList.add('new');
+                    setTimeout(() => newsElement.classList.remove('new'), 500);
+                }
+            });
+
+            // Update current news IDs
+            currentNewsIds = new Set(newsItems.map(item => item.guid));
+        }
+
+        function createNewsElement(item) {
+            const newsDiv = document.createElement('div');
+            newsDiv.className = 'news-item' + (item.is_high_impact ? ' high-impact' : '');
+            
+            const titleElement = document.createElement('div');
+            titleElement.className = 'news-title';
+            titleElement.textContent = item.title;
+            
+            if (config.showHighImpactBadge && item.is_high_impact) {
+                const badge = document.createElement('span');
+                badge.className = 'high-impact-badge';
+                badge.textContent = 'HIGH IMPACT';
+                titleElement.appendChild(badge);
+            }
+
+            const metaElement = document.createElement('div');
+            metaElement.className = 'news-meta';
+            metaElement.innerHTML = `
+                <span class="news-time">${item.time_ago}</span>
+                <span class="news-source">${item.author}</span>
+            `;
+
+            newsDiv.appendChild(titleElement);
+            newsDiv.appendChild(metaElement);
+
+            // Add click handler to open article
+            if (item.link) {
+                newsDiv.addEventListener('click', () => {
+                    if (config.openLinksInNewTab) {
+                        window.open(item.link, '_blank');
+                    } else {
+                        window.location.href = item.link;
+                    }
+                });
+            }
+
+            return newsDiv;
+        }
+
+        function showError(message) {
+            const container = document.getElementById('newsContainer');
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('lastUpdated').textContent = `Updated: ${timeString}`;
+        }
+
+        // Initialize
+        fetchNews();
+
+        // Set up refresh interval
+        setInterval(fetchNews, config.refreshInterval);
+    </script>
+</body>
+</html>

@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from app.services.cache_service import get_price, get_account
+from app.services.rss_service import rss_service
+from app.services.forex_factory_service import forex_factory_service
 from app.routes.mt5_routes import router as mt5_router
 from app.routes.mt5_terminal_routes import router as mt5_terminal_router
 from dotenv import load_dotenv
@@ -16,6 +18,10 @@ import json
 import subprocess
 import signal
 import base64
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv("C:/WidgetForge/widgetforge-backend/.env")
 
@@ -85,6 +91,23 @@ templates = Jinja2Templates(directory="app/templates")
 @app.get("/ping")
 def ping():
     return {"status": "ok"}
+
+@app.get("/api/rss/financial-juice")
+async def get_financial_juice_news(max_items: int = 20):
+    """Get Financial Juice news from RSS feed"""
+    try:
+        news_items = rss_service.fetch_financial_juice_news(max_items)
+        return {
+            "success": True,
+            "data": news_items,
+            "count": len(news_items)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": []
+        }
 
 
 @app.get("/price/{symbol}")
@@ -551,6 +574,197 @@ async def enhanced_account_widget(request: Request):
         "profit_negative_color": params.get("profit_negative_color", "#ff4444"),
         "profit_neutral_color": params.get("profit_neutral_color", "#cccccc"),
         "label_color": params.get("label_color", "#cccccc")
+    })
+
+@app.get("/widgets/financial-juice", response_class=HTMLResponse)
+async def financial_juice_widget(request: Request):
+    """Financial Juice RSS news widget with customizable styling"""
+    params = request.query_params
+    
+    return templates.TemplateResponse("financial_juice_widget.html", {
+        "request": request,
+        # Widget configuration
+        "title": params.get("title", "Financial Juice News"),
+        "max_items": int(params.get("max_items", "20")),
+        "refresh_interval": int(params.get("refresh_interval", "60")),
+        
+        # Layout and sizing
+        "width": params.get("width", "100%"),
+        "height": params.get("height", "400"),
+        "padding": params.get("padding", "10"),
+        "item_spacing": params.get("item_spacing", "8"),
+        "item_padding": params.get("item_padding", "12"),
+        "border_radius": params.get("border_radius", "6"),
+        
+        # Typography
+        "font": params.get("font", "Inter"),
+        "font_size": params.get("font_size", "14"),
+        "title_font_size": params.get("title_font_size", "18"),
+        "news_title_size": params.get("news_title_size", "14"),
+        "meta_font_size": params.get("meta_font_size", "11"),
+        "badge_font_size": params.get("badge_font_size", "10"),
+        "small_font_size": params.get("small_font_size", "12"),
+        "title_weight": params.get("title_weight", "600"),
+        
+        # Colors
+        "bg_color": params.get("bg_color", "#1e222d"),
+        "font_color": params.get("font_color", "#b2b5be"),
+        "title_color": params.get("title_color", "#ffffff"),
+        "secondary_color": params.get("secondary_color", "#888"),
+        "accent_color": params.get("accent_color", "#4a5568"),
+        "item_bg_color": params.get("item_bg_color", "#2d3748"),
+        "hover_color": params.get("hover_color", "#374151"),
+        "normal_color": params.get("normal_color", "#4a90e2"),
+        "high_impact_color": params.get("high_impact_color", "#e53e3e"),
+        "high_impact_bg": params.get("high_impact_bg", "#4a1f1f"),
+        "high_impact_text_color": params.get("high_impact_text_color", "#ff6b6b"),
+        "news_title_color": params.get("news_title_color", "#ffffff"),
+        "meta_color": params.get("meta_color", "#999"),
+        "error_color": params.get("error_color", "#e53e3e"),
+        
+        # Behavior
+        "show_high_impact_badge": params.get("show_high_impact_badge", "true"),
+        "open_links_new_tab": params.get("open_links_new_tab", "true"),
+        "animate_new_items": params.get("animate_new_items", "true")
+    })
+
+@app.get("/api/forex-factory/upcoming")
+async def get_upcoming_events(max_items: int = 20, impact: str = None):
+    """Get upcoming Forex Factory economic calendar events"""
+    try:
+        events = forex_factory_service.get_upcoming_events(max_items, impact)
+        return {
+            "success": True,
+            "data": events,
+            "count": len(events)
+        }
+    except Exception as e:
+        logger.error(f"Error in Forex Factory API endpoint: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "data": []
+        }
+
+@app.get("/api/forex-factory/high-impact")
+async def get_high_impact_events(max_items: int = 10):
+    """Get upcoming high-impact Forex Factory events"""
+    try:
+        events = forex_factory_service.get_high_impact_events(max_items)
+        return {
+            "success": True,
+            "data": events,
+            "count": len(events)
+        }
+    except Exception as e:
+        logger.error(f"Error in high-impact events API endpoint: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "data": []
+        }
+
+@app.get("/api/combined/rotation-data")
+async def get_rotation_data(news_count: int = 8, events_count: int = 8):
+    """Get data for rotating widget display with cross-referenced news"""
+    try:
+        # Get news data (fetch more to find relevant items, then limit display)
+        all_news_items = rss_service.fetch_financial_juice_news(50)
+        news_items = all_news_items[:news_count]
+        
+        # Get ONLY Forex Factory high-impact events (past and upcoming)
+        recent_past_events = forex_factory_service.get_recent_past_events(events_count, "High") 
+        upcoming_events = forex_factory_service.get_upcoming_events(events_count, "High")
+        
+        # Enhance events with actual results from RSS news
+        enhanced_past_events = forex_factory_service.enhance_events_with_rss_results(recent_past_events, all_news_items)
+        enhanced_upcoming_events = forex_factory_service.enhance_events_with_rss_results(upcoming_events, all_news_items)
+        
+        # Combine and limit to events_count total (only FF high-impact)
+        calendar_display_events = (enhanced_past_events + enhanced_upcoming_events)[:events_count]
+        all_events = forex_factory_service.get_todays_events() + upcoming_events
+        
+        # Cross-reference news with calendar events (but keep chronological order)
+        enhanced_news = rss_service.cross_reference_with_calendar(news_items, all_events)
+        
+        # Get pinned items (but disable pinned event to avoid duplicates)
+        pinned_news = rss_service.get_recent_high_impact_news()
+        pinned_event = None  # Disable pinned event since we show recent events in main list
+        
+        return {
+            "success": True,
+            "data": {
+                "news_feed": {
+                    "items": enhanced_news,
+                    "pinned": pinned_news
+                },
+                "calendar_feed": {
+                    "items": calendar_display_events,
+                    "pinned": pinned_event
+                },
+                "rotation_ready": True,
+                "last_updated": datetime.now().isoformat()
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error in rotation data API endpoint: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {}
+        }
+
+@app.get("/widgets/rotating-financial-news", response_class=HTMLResponse)
+async def rotating_financial_news_widget(request: Request):
+    """Rotating widget combining Financial Juice news and Forex Factory calendar"""
+    params = request.query_params
+    
+    return templates.TemplateResponse("rotating_financial_news_widget.html", {
+        "request": request,
+        # Widget configuration
+        "title": params.get("title", "Market News and Economic Events"),
+        "rotation_interval": int(params.get("rotation_interval", "15")),
+        "refresh_interval": int(params.get("refresh_interval", "60")),
+        "auto_rotate": params.get("auto_rotate", "true").lower(),
+        "news_count": int(params.get("news_count", "8")),
+        "events_count": int(params.get("events_count", "8")),
+        
+        # Layout and sizing
+        "width": params.get("width", "300"),
+        "height": params.get("height", "500"),
+        "padding": params.get("padding", "16"),
+        "item_spacing": params.get("item_spacing", "8"),
+        "item_padding": params.get("item_padding", "12"),
+        "border_radius": params.get("border_radius", "8"),
+        
+        # Typography
+        "font": params.get("font", "Roboto"),
+        "font_size": params.get("font_size", "14"),
+        "title_font_size": params.get("title_font_size", "18"),
+        "news_title_size": params.get("news_title_size", "14"),
+        "meta_font_size": params.get("meta_font_size", "11"),
+        "badge_font_size": params.get("badge_font_size", "9"),
+        "small_font_size": params.get("small_font_size", "12"),
+        "title_weight": params.get("title_weight", "600"),
+        
+        # Colors
+        "bg_color": params.get("bg_color", "#1a1d29"),
+        "font_color": params.get("font_color", "#e2e8f0"),
+        "title_color": params.get("title_color", "#ffffff"),
+        "secondary_color": params.get("secondary_color", "#64748b"),
+        "accent_color": params.get("accent_color", "#3b82f6"),
+        "item_bg_color": params.get("item_bg_color", "#2d3748"),
+        "hover_color": params.get("hover_color", "#374151"),
+        "normal_color": params.get("normal_color", "#60a5fa"),
+        "high_impact_color": params.get("high_impact_color", "#ef4444"),
+        "high_impact_bg": params.get("high_impact_bg", "#3c1e1e"),
+        "high_impact_text_color": params.get("high_impact_text_color", "#fca5a5"),
+        "news_title_color": params.get("news_title_color", "#f8fafc"),
+        "meta_color": params.get("meta_color", "#94a3b8"),
+        "error_color": params.get("error_color", "#ef4444"),
+        
+        # Behavior
+        "open_links_new_tab": params.get("open_links_new_tab", "true")
     })
 
 @app.post("/api/save-traders")
