@@ -37,7 +37,7 @@ def download_forex_factory_calendar(headless=True):
         driver.get("https://www.forexfactory.com/calendar")
         
         # Wait for page to load
-        WebDriverWait(driver, 10).wait(
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "calendar"))
         )
         
@@ -47,24 +47,33 @@ def download_forex_factory_calendar(headless=True):
         # Try to find JSON data in page source
         page_source = driver.page_source
         
-        # Look for calendar data or export URLs
-        json_pattern = r'https://nfs\.forexfactory\.com/ff_calendar_thisweek\.json\?version=(\d+)'
-        matches = re.findall(json_pattern, page_source)
+        # Look for calendar data or export URLs (updated for current domain)
+        patterns = [
+            r'https://nfs\.faireconomy\.media/ff_calendar_thisweek\.json\?version=([a-f0-9]+)',
+            r'nfs\.faireconomy\.media/ff_calendar_thisweek\.json\?version=([a-f0-9]+)',
+            r'ff_calendar_thisweek\.json\?version=([a-f0-9]+)'
+        ]
         
-        if matches:
-            version = matches[0]
-            json_url = f"https://nfs.forexfactory.com/ff_calendar_thisweek.json?version={version}"
-            print(f"✅ Found JSON URL with version {version}")
-        else:
-            # Fallback - try common version numbers
-            print("⚠️  No specific version found, trying latest...")
-            import random
-            version = random.randint(1000000, 9999999)  # Random version number
-            json_url = f"https://nfs.forexfactory.com/ff_calendar_thisweek.json?version={version}"
+        json_url = None
+        for pattern in patterns:
+            matches = re.findall(pattern, page_source)
+            if matches:
+                version = matches[0]
+                json_url = f"https://nfs.faireconomy.media/ff_calendar_thisweek.json?version={version}"
+                print(f"✅ Found JSON URL with version {version}")
+                break
+        
+        if not json_url:
+            print("⚠️  No specific version found, trying current URL you provided...")
+            json_url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=e21710366e7e3dd646b0025695e9ed82"
         
         # Close browser
         driver.quit()
         driver = None
+        
+        if not json_url:
+            print("❌ Could not find any working JSON URL")
+            return None
         
         # Download the JSON data
         print(f"📥 Downloading calendar data from: {json_url}")
@@ -104,17 +113,13 @@ def download_forex_factory_calendar(headless=True):
 def download_simple_request():
     """Simple fallback method using direct request"""
     try:
-        # Try direct request to known URL patterns
-        base_url = "https://nfs.forexfactory.com/ff_calendar_thisweek.json"
+        # Try direct request to current URL you provided
+        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=e21710366e7e3dd646b0025695e9ed82"
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Referer': 'https://www.forexfactory.com/'
         }
-        
-        # Try with current timestamp as version
-        version = int(datetime.now().timestamp())
-        url = f"{base_url}?version={version}"
         
         print(f"📥 Trying direct download: {url}")
         response = requests.get(url, headers=headers, timeout=10)

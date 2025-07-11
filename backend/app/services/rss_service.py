@@ -223,5 +223,18 @@ class RSSService:
             logger.warning(f"Failed to extract actual from title '{title}': {e}")
             return None
 
+    def get_recent_high_impact_news(self, max_items: int = 10) -> List[Dict]:
+        """Get recent high-impact news items specifically"""
+        all_news = self.fetch_financial_juice_news(max_items * 2)  # Fetch more to filter
+        
+        # Filter for high-impact news only
+        high_impact_news = [
+            news for news in all_news 
+            if news.get('is_high_impact', False)
+        ]
+        
+        # Return limited results
+        return high_impact_news[:max_items]
+
 # Global instance
 rss_service = RSSService()
