@@ -115,6 +115,9 @@
             height: 100%;
             position: relative;
             overflow: hidden;
+            transform: translateZ(0);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .fj-widget-wrapper {
@@ -124,6 +127,9 @@
             background: {{ item_bg_color }};
             border-radius: {{ border_radius }}px;
             overflow: hidden;
+            transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         /* Override Financial Juice widget styles to match our theme */
@@ -133,6 +139,12 @@
             height: 100% !important;
             border: none !important;
             border-radius: {{ border_radius }}px !important;
+            transform: translateZ(0) !important;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+            backface-visibility: hidden !important;
+            image-rendering: -webkit-optimize-contrast !important;
+            image-rendering: crisp-edges !important;
         }
 
         /* Fallback content for when FJ widget is loading */
@@ -146,6 +158,9 @@
             background: {{ item_bg_color }};
             border-radius: {{ border_radius }}px;
             border: 1px solid {{ accent_color }}40;
+            transform: translateZ(0);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         /* Calendar section styles */
@@ -471,10 +486,14 @@
                 this.countdownTimer = this.rotationInterval;
                 this.isRotating = {{ auto_rotate }};
                 this.dynamicTiming = true; // Allow flexible timing based on content
+                this.calendarDataLoaded = false;
                 
                 this.initializeWidget();
-                this.startRotation();
                 this.startDataRefresh();
+                // Start rotation after a brief delay to allow calendar data to load
+                setTimeout(() => {
+                    this.startRotation();
+                }, 2000);
             }
 
             initializeWidget() {
@@ -501,6 +520,8 @@
                     
                     if (result.success) {
                         this.updateCalendarSection(result.data.calendar_feed);
+                        this.calendarDataLoaded = true;
+                        console.log('Calendar data loaded successfully');
                     } else {
                         this.showCalendarError('Failed to load calendar data: ' + result.error);
                     }
@@ -527,11 +548,19 @@
                 
                 if (calendarData.items && calendarData.items.length > 0) {
                     // Setup automatic event rotation for stream overlay
+                    console.log(`Loading ${calendarData.items.length} calendar events`);
                     this.setupEventRotation(calendarData.items);
+                    
+                    // Update timing if we're currently showing calendar
+                    if (this.currentFeed === 'calendar') {
+                        console.log('Calendar is active, recalculating timing...');
+                        // Don't change current countdown, but update for next rotation
+                    }
                 } else {
                     // Show fallback message when no high impact events
                     const noEventsMessage = this.createNoEventsMessage();
                     calendarContent.appendChild(noEventsMessage);
+                    this.calendarEvents = null;
                 }
             }
 
@@ -728,8 +757,10 @@
             startRotation() {
                 if (!this.isRotating) return;
                 
-                // Set initial countdown based on starting feed
-                this.resetCountdown();
+                // Set initial countdown - we start on 'news' so next will be 'calendar'
+                // Use a shorter initial time for news, then proper timing for calendar
+                this.countdownTimer = this.rotationInterval;
+                console.log(`Starting rotation: ${this.countdownTimer}s on news, then switching to calendar`);
                 
                 setInterval(() => {
                     this.countdownTimer--;
@@ -737,8 +768,12 @@
                     
                     if (this.countdownTimer <= 0) {
                         const nextFeed = this.currentFeed === 'news' ? 'calendar' : 'news';
+                        console.log(`Switching from ${this.currentFeed} to ${nextFeed}`);
                         this.switchToFeed(nextFeed);
-                        this.resetCountdown();
+                        
+                        // Set countdown for the NEXT switch (what comes after nextFeed)
+                        const followingFeed = nextFeed === 'news' ? 'calendar' : 'news';
+                        this.resetCountdownForNextFeed(followingFeed);
                     }
                 }, 1000);
             }
@@ -765,15 +800,16 @@
                 }, this.refreshInterval * 1000);
             }
 
-            resetCountdown() {
-                // Determine timing based on current feed (what we're staying on)
-                if (this.dynamicTiming && this.currentFeed === 'calendar' && this.calendarEvents) {
-                    // Currently on calendar - use dynamic timing based on event count
+            resetCountdownForNextFeed(nextFeed) {
+                // Determine timing based on what feed we're switching TO
+                if (this.dynamicTiming && nextFeed === 'calendar' && this.calendarEvents) {
+                    // Switching TO calendar - use dynamic timing based on event count
                     this.countdownTimer = this.calculateDynamicRotationTime();
-                    console.log(`Dynamic calendar timing: ${this.countdownTimer}s for ${this.calendarEvents.length} events`);
+                    console.log(`Setting ${this.countdownTimer}s for upcoming calendar (${this.calendarEvents.length} events)`);
                 } else {
-                    // On news or no calendar events - use standard timing
+                    // Switching TO news or no calendar events - use standard timing
                     this.countdownTimer = this.rotationInterval;
+                    console.log(`Setting ${this.countdownTimer}s for upcoming ${nextFeed}`);
                 }
             }
 
