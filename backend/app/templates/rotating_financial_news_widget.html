@@ -190,16 +190,69 @@
         }
 
         .feed-content {
-            height: calc(100% - 60px);
-            overflow: hidden;
-            padding-bottom: 20px;
+            height: calc(100% - 50px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 5px;
+            padding-right: 5px;
+        }
+
+        /* Custom scrollbar for better UX */
+        .feed-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .feed-content::-webkit-scrollbar-track {
+            background: {{ accent_color }}20;
+            border-radius: 2px;
+        }
+
+        .feed-content::-webkit-scrollbar-thumb {
+            background: {{ accent_color }}60;
+            border-radius: 2px;
+        }
+
+        .feed-content::-webkit-scrollbar-thumb:hover {
+            background: {{ accent_color }}80;
+        }
+
+        /* Scroll indicator for more events */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(transparent, {{ bg_color }}90);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: {{ accent_color }};
+            font-size: {{ meta_font_size }}px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .scroll-indicator.show {
+            opacity: 1;
+        }
+
+        .scroll-indicator::after {
+            content: "▼ More events below";
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
         }
 
         .event-item {
             background: {{ item_bg_color }};
             border-radius: {{ border_radius }}px;
-            padding: {{ item_padding }}px;
-            margin-bottom: {{ item_spacing }}px;
+            padding: {{ item_padding|int - 2 }}px;
+            margin-bottom: {{ item_spacing|int - 2 }}px;
             border: 1px solid {{ accent_color }}40;
             transition: all 0.3s ease;
             cursor: pointer;
@@ -213,8 +266,8 @@
         }
 
         .item-title {
-            font-size: {{ news_title_size }}px;
-            font-weight: 400;
+            font-size: {{ news_title_size|int + 2 }}px;
+            font-weight: 500;
             color: {{ news_title_color }};
             margin-bottom: 6px;
             line-height: 1.4;
@@ -222,8 +275,8 @@
 
         .event-item.high-impact .item-title,
         .pinned-item .item-title {
-            font-size: {{ news_title_size|int + 2 }}px;
-            font-weight: 500;
+            font-size: {{ news_title_size|int + 4 }}px;
+            font-weight: 600;
             color: #ffffff;
             line-height: 1.5;
         }
@@ -277,13 +330,15 @@
 
         .event-time {
             color: {{ normal_color }};
-            font-weight: 400;
+            font-weight: 500;
+            font-size: {{ meta_font_size|int + 1 }}px;
         }
 
         .forecast-data {
-            font-size: {{ small_font_size }}px;
+            font-size: {{ small_font_size|int + 1 }}px;
             color: {{ secondary_color }};
             margin-top: 4px;
+            line-height: 1.3;
         }
 
         .status-badge {
@@ -414,6 +469,7 @@
                 <div class="feed-content" id="calendarContent">
                     <div class="loading">Loading calendar...</div>
                 </div>
+                <div class="scroll-indicator" id="scrollIndicator"></div>
             </div>
         </div>
     </div>
@@ -499,6 +555,7 @@
             updateCalendarSection(calendarData) {
                 const calendarContent = document.getElementById('calendarContent');
                 const pinnedEvent = document.getElementById('pinnedEvent');
+                const scrollIndicator = document.getElementById('scrollIndicator');
                 
                 // Update pinned event
                 if (calendarData.pinned) {
@@ -517,10 +574,14 @@
                         const eventItem = this.createEventItem(item);
                         calendarContent.appendChild(eventItem);
                     });
+                    
+                    // Setup scroll detection for overflow indicator
+                    this.setupScrollDetection(calendarContent, scrollIndicator);
                 } else {
                     // Show fallback message when no high impact events
                     const noEventsMessage = this.createNoEventsMessage();
                     calendarContent.appendChild(noEventsMessage);
+                    scrollIndicator.classList.remove('show');
                 }
             }
 
@@ -593,6 +654,29 @@
                 `;
                 
                 return div;
+            }
+
+            setupScrollDetection(contentElement, indicatorElement) {
+                // Check if content overflows and setup scroll indicator
+                const checkScroll = () => {
+                    const hasOverflow = contentElement.scrollHeight > contentElement.clientHeight;
+                    const isScrolledToBottom = contentElement.scrollTop + contentElement.clientHeight >= contentElement.scrollHeight - 5;
+                    
+                    if (hasOverflow && !isScrolledToBottom) {
+                        indicatorElement.classList.add('show');
+                    } else {
+                        indicatorElement.classList.remove('show');
+                    }
+                };
+                
+                // Initial check
+                setTimeout(checkScroll, 100); // Delay to ensure content is rendered
+                
+                // Listen for scroll events
+                contentElement.addEventListener('scroll', checkScroll);
+                
+                // Listen for window resize
+                window.addEventListener('resize', checkScroll);
             }
 
             switchToFeed(feedType) {

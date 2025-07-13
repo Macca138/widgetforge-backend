@@ -12,50 +12,59 @@ from app.services.cache_service import set_price
 
 
 def connect_mt5():
-    """Connect to MT5 with multiple path attempts"""
-    # Try multiple common MT5 paths
-    mt5_paths = [
-        "C:/MT5Terminals/Account1/terminal64.exe",  # Original custom path
-        None,  # Auto-detect (default)
-        "C:/Program Files/MetaTrader 5/terminal64.exe",  # Standard installation
-        "C:/Program Files (x86)/MetaTrader 5/terminal64.exe",  # 32-bit system
-    ]
+    """Connect to MT5 with detailed error reporting"""
+    mt5_path = "C:/MT5Terminals/Account1/terminal64.exe"
     
-    for i, path in enumerate(mt5_paths):
-        try:
-            if path is None:
-                print("🔍 Attempting MT5 connection with auto-detect...")
-                success = mt5.initialize()
-            else:
-                print(f"🔍 Attempting MT5 connection: {path}")
-                success = mt5.initialize(path=path)
+    print(f"🔍 Attempting MT5 connection: {mt5_path}")
+    
+    # Check if file exists first
+    if not os.path.exists(mt5_path):
+        print(f"❌ MT5 executable not found at: {mt5_path}")
+        raise RuntimeError("❌ MT5 terminal64.exe not found")
+    
+    try:
+        success = mt5.initialize(path=mt5_path)
+        
+        if success:
+            terminal_info = mt5.terminal_info()
+            account_info = mt5.account_info()
+            print("✅ Connected to MT5")
             
-            if success:
-                terminal_info = mt5.terminal_info()
-                account_info = mt5.account_info()
-                print("✅ Connected to MT5")
-                if terminal_info:
-                    print(f"   Terminal: {terminal_info.name}")
-                    print(f"   Path: {terminal_info.path}")
-                if account_info:
-                    print(f"   Account: {account_info.login} on {account_info.server}")
-                else:
-                    print("   ⚠️ Not logged into trading account")
-                return
-        except Exception as e:
-            print(f"   ❌ Failed with {path}: {e}")
-            continue
-    
-    # If all attempts failed
-    error_info = mt5.last_error()
-    print("❌ All MT5 connection attempts failed!")
-    print(f"   Last error: {error_info}")
-    print("💡 Troubleshooting tips:")
-    print("   1. Ensure MetaTrader 5 is running")
-    print("   2. Check if terminal64.exe path is correct") 
-    print("   3. Verify MT5 allows DLL imports (Tools > Options > Expert Advisors)")
-    print("   4. Try running the diagnostic script: python diagnose_mt5.py")
-    raise RuntimeError("❌ MT5 initialization failed after trying all paths")
+            if terminal_info:
+                print(f"   Terminal: {terminal_info.name}")
+                print(f"   Build: {terminal_info.build}")
+                print(f"   DLL Allowed: {terminal_info.dlls_allowed}")
+                print(f"   Connected: {terminal_info.connected}")
+            
+            if account_info:
+                print(f"   Account: {account_info.login} on {account_info.server}")
+                print(f"   Trade Allowed: {account_info.trade_allowed}")
+            else:
+                print("   ⚠️ Not logged into trading account")
+            
+            return
+        else:
+            error_info = mt5.last_error()
+            print(f"❌ MT5 Connection Failed!")
+            print(f"   Error: {error_info}")
+            print(f"💡 Common fixes:")
+            print(f"   1. In MT5: Tools > Options > Expert Advisors > ✅ Allow DLL imports")
+            print(f"   2. Restart MT5 terminal completely")
+            print(f"   3. Run this script as Administrator")
+            print(f"   4. Ensure account is logged in (not just terminal open)")
+            
+            # Try to get more details
+            if terminal_info := mt5.terminal_info():
+                if not terminal_info.dlls_allowed:
+                    print(f"   ⚠️ DLL imports are DISABLED in MT5 settings!")
+                if not terminal_info.connected:
+                    print(f"   ⚠️ MT5 terminal is not connected to broker server!")
+            
+            raise RuntimeError("❌ MT5 initialization failed")
+            
+    except Exception as e:
+        print(f"❌ Python Exception: {e}")
+        raise RuntimeError(f"❌ MT5 initialization failed: {e}")
 
 
 def get_previous_close(symbol):
