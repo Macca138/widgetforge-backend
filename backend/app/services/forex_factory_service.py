@@ -197,16 +197,20 @@ class ForexFactoryService:
         # Common economic indicators and their variations
         economic_mappings = {
             'unemployment': ['unemployment', 'jobless', 'employment', 'employment change', 'jobs'],
-            'inflation': ['inflation', 'cpi', 'consumer price', 'price index'],
+            'inflation': ['inflation', 'cpi', 'consumer price', 'price index', 'ppi', 'producer price', 'producer price index', 'core cpi', 'core inflation', 'core pce', 'pce index'],
             'gdp': ['gdp', 'gross domestic product', 'economic growth'],
-            'interest rate': ['interest rate', 'rate decision', 'fed rate', 'federal rate', 'rate'],
-            'retail sales': ['retail sales', 'consumer spending'],
-            'manufacturing': ['manufacturing', 'factory', 'industrial', 'pmi'],
-            'employment': ['employment', 'jobs', 'payroll', 'nonfarm', 'employment change', 'jobless claims'],
+            'interest rate': ['interest rate', 'rate decision', 'fed rate', 'federal rate', 'rate', 'fomc decision', 'fed meeting'],
+            'retail sales': ['retail sales', 'consumer spending', 'retail sales ex auto', 'core retail sales'],
+            'manufacturing': ['manufacturing', 'factory', 'industrial', 'pmi', 'ism manufacturing', 'manufacturing pmi', 'business confidence', 'manufacturing confidence'],
+            'employment': ['employment', 'jobs', 'payroll', 'nonfarm', 'non-farm', 'employment change', 'jobless claims', 'initial claims', 'initial jobless claims', 'weekly claims', 'continuing claims'],
             'trade': ['trade', 'exports', 'imports', 'trade balance'],
-            'housing': ['housing', 'home sales', 'mortgage', 'building permits'],
-            'central bank': ['fed', 'ecb', 'boe', 'boj', 'central bank', 'fomc'],
-            'earnings': ['earnings', 'wages', 'income'],
+            'housing': ['housing', 'home sales', 'mortgage', 'building permits', 'new home sales', 'existing home sales', 'pending home sales'],
+            'central bank': ['fed', 'ecb', 'boe', 'boj', 'central bank', 'fomc', 'fed minutes', 'fomc minutes', 'fed speak', 'powell', 'yellen', 'fed chair'],
+            'earnings': ['earnings', 'wages', 'income', 'average hourly earnings'],
+            'consumer confidence': ['consumer confidence', 'confidence index', 'consumer sentiment', 'university of michigan'],
+            'durable goods': ['durable goods', 'durable goods orders', 'capital goods'],
+            'services': ['services', 'services pmi', 'ism services', 'composite pmi'],
+            'economic surveys': ['beige book', 'tankan', 'zew', 'ifo', 'economic sentiment'],
             'economic data': ['economic', 'data', 'statistics', 'report']
         }
         
@@ -278,16 +282,20 @@ class ForexFactoryService:
         
         # More specific economic indicator matching
         specific_mappings = {
-            'employment change': ['employment change'],
-            'unemployment rate': ['unemployment rate'],
-            'gdp': ['gdp', 'gross domestic product'],
-            'inflation': ['inflation', 'cpi', 'consumer price'],
-            'interest rate': ['interest rate', 'rate decision'],
-            'retail sales': ['retail sales'],
-            'manufacturing': ['manufacturing', 'pmi'],
+            'employment change': ['employment change', 'nonfarm', 'non-farm', 'payroll'],
+            'unemployment rate': ['unemployment rate', 'jobless rate'],
+            'gdp': ['gdp', 'gross domestic product', 'economic growth'],
+            'inflation': ['inflation', 'cpi', 'consumer price', 'ppi', 'producer price', 'core cpi', 'core inflation'],
+            'interest rate': ['interest rate', 'rate decision', 'fomc', 'fed rate'],
+            'retail sales': ['retail sales', 'retail sales ex auto', 'core retail sales'],
+            'manufacturing': ['manufacturing', 'pmi', 'ism manufacturing', 'manufacturing pmi'],
             'trade balance': ['trade balance'],
             'building permits': ['building permits'],
-            'housing': ['housing', 'home sales']
+            'housing': ['housing', 'home sales', 'new home sales', 'existing home sales'],
+            'jobless claims': ['jobless claims', 'initial claims', 'weekly claims'],
+            'consumer confidence': ['consumer confidence', 'consumer sentiment'],
+            'durable goods': ['durable goods', 'durable goods orders'],
+            'services pmi': ['services pmi', 'ism services']
         }
         
         # Check for exact or very close indicator matches

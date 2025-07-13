@@ -98,11 +98,13 @@ class RSSService:
         Determine if news is high impact based on title keywords
         """
         high_impact_keywords = [
-            'fed', 'federal reserve', 'interest rate', 'inflation', 'cpi', 'ppi',
-            'gdp', 'employment', 'unemployment', 'nonfarm', 'payroll',
-            'central bank', 'ecb', 'boe', 'boj', 'fomc', 'rate decision',
+            'fed', 'federal reserve', 'interest rate', 'inflation', 'cpi', 'ppi', 'core cpi', 'core pce',
+            'gdp', 'employment', 'unemployment', 'nonfarm', 'non-farm', 'payroll', 'jobless claims',
+            'central bank', 'ecb', 'boe', 'boj', 'fomc', 'rate decision', 'fed minutes',
+            'retail sales', 'durable goods', 'consumer confidence', 'pmi', 'ism',
+            'producer price', 'manufacturing', 'trade balance', 'building permits',
             'earnings', 'crash', 'surge', 'plunge', 'soars', 'tumbles',
-            'recession', 'crisis', 'emergency', 'breaking', 'urgent'
+            'recession', 'crisis', 'emergency', 'breaking', 'urgent', 'beige book'
         ]
         
         title_lower = title.lower()
@@ -287,16 +289,20 @@ class RSSService:
         # Common economic indicators and their variations
         economic_mappings = {
             'unemployment': ['unemployment', 'jobless', 'employment', 'employment change', 'jobs'],
-            'inflation': ['inflation', 'cpi', 'consumer price', 'price index'],
+            'inflation': ['inflation', 'cpi', 'consumer price', 'price index', 'ppi', 'producer price', 'producer price index', 'core cpi', 'core inflation', 'core pce', 'pce index'],
             'gdp': ['gdp', 'gross domestic product', 'economic growth'],
-            'interest rate': ['interest rate', 'rate decision', 'fed rate', 'federal rate', 'rate'],
-            'retail sales': ['retail sales', 'consumer spending'],
-            'manufacturing': ['manufacturing', 'factory', 'industrial', 'pmi'],
-            'employment': ['employment', 'jobs', 'payroll', 'nonfarm', 'employment change', 'jobless claims'],
+            'interest rate': ['interest rate', 'rate decision', 'fed rate', 'federal rate', 'rate', 'fomc decision', 'fed meeting'],
+            'retail sales': ['retail sales', 'consumer spending', 'retail sales ex auto', 'core retail sales'],
+            'manufacturing': ['manufacturing', 'factory', 'industrial', 'pmi', 'ism manufacturing', 'manufacturing pmi', 'business confidence', 'manufacturing confidence'],
+            'employment': ['employment', 'jobs', 'payroll', 'nonfarm', 'non-farm', 'employment change', 'jobless claims', 'initial claims', 'initial jobless claims', 'weekly claims', 'continuing claims'],
             'trade': ['trade', 'exports', 'imports', 'trade balance'],
-            'housing': ['housing', 'home sales', 'mortgage', 'building permits'],
-            'central bank': ['fed', 'ecb', 'boe', 'boj', 'central bank', 'fomc'],
-            'earnings': ['earnings', 'wages', 'income'],
+            'housing': ['housing', 'home sales', 'mortgage', 'building permits', 'new home sales', 'existing home sales', 'pending home sales'],
+            'central bank': ['fed', 'ecb', 'boe', 'boj', 'central bank', 'fomc', 'fed minutes', 'fomc minutes', 'fed speak', 'powell', 'yellen', 'fed chair'],
+            'earnings': ['earnings', 'wages', 'income', 'average hourly earnings'],
+            'consumer confidence': ['consumer confidence', 'confidence index', 'consumer sentiment', 'university of michigan'],
+            'durable goods': ['durable goods', 'durable goods orders', 'capital goods'],
+            'services': ['services', 'services pmi', 'ism services', 'composite pmi'],
+            'economic surveys': ['beige book', 'tankan', 'zew', 'ifo', 'economic sentiment'],
             'economic data': ['economic', 'data', 'statistics', 'report']
         }
         
