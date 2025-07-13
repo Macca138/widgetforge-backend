@@ -123,20 +123,17 @@
         }
         
         .warning-title {
-            font-size: {{ news_title_size|int + 6 }}px;
-            font-weight: 700;
+            font-size: {{ news_title_size|int + 2 }}px;
+            font-weight: 600;
             color: {{ accent_color }};
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            margin-bottom: 12px;
         }
         
         .warning-message {
-            font-size: {{ font_size|int + 2 }}px;
+            font-size: {{ font_size }}px;
             color: #ffffff;
-            line-height: 1.6;
+            line-height: 1.5;
             max-width: 90%;
-            font-weight: 400;
         }
 
         .page-section.active {
@@ -343,15 +340,12 @@
         }
 
         .currency-flag {
-            font-size: {{ badge_font_size|int + 4 }}px;
-            background: {{ accent_color }};
-            color: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-weight: 700;
-            min-width: 50px;
+            font-size: {{ badge_font_size|int + 8 }}px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            min-width: 40px;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            line-height: 1;
         }
 
         .event-time {
@@ -361,14 +355,13 @@
         }
 
         .forecast-data {
-            font-size: {{ small_font_size|int + 2 }}px;
+            font-size: {{ small_font_size|int + 1 }}px;
             color: #ffffff;
-            margin-top: 6px;
-            line-height: 1.4;
-            font-weight: 500;
-            background: rgba(0,0,0,0.3);
-            padding: 4px 8px;
-            border-radius: 4px;
+            margin-top: 4px;
+            line-height: 1.3;
+            background: rgba(0,0,0,0.4);
+            padding: 3px 6px;
+            border-radius: 3px;
         }
 
         .status-badge {
@@ -529,11 +522,13 @@
                 this.currentPage = 0;
                 this.totalPages = 1; // Start with just FJ page
                 this.pageInterval = {{ rotation_interval }}; // Time per page
+                this.warningPageInterval = 5; // Warning page gets 5s only
                 this.refreshInterval = {{ refresh_interval }};
                 this.countdownTimer = this.pageInterval;
                 this.isRotating = {{ auto_rotate }};
                 this.calendarEvents = [];
                 this.eventsPerPage = 4;
+                this.isRefreshing = false; // Prevent refresh during transitions
                 
                 this.initializeWidget();
                 this.startDataRefresh();
@@ -555,21 +550,38 @@
             }
 
             async loadCalendarData() {
+                // Prevent refresh during active rotation to avoid blank pages
+                if (this.isRefreshing) {
+                    console.log('🚫 Skipping refresh - already in progress');
+                    return;
+                }
+                
+                this.isRefreshing = true;
+                
                 try {
                     const response = await fetch('/api/combined/rotation-data?news_count={{ news_count }}&events_count={{ events_count }}');
                     const result = await response.json();
                     
                     if (result.success && result.data.calendar_feed.items) {
-                        this.calendarEvents = result.data.calendar_feed.items;
-                        console.log(`📊 Loaded ${this.calendarEvents.length} calendar events`);
-                        this.buildAllPages();
+                        const newEvents = result.data.calendar_feed.items;
+                        
+                        // Only rebuild if event count changed to avoid disrupting rotation
+                        if (JSON.stringify(newEvents) !== JSON.stringify(this.calendarEvents)) {
+                            this.calendarEvents = newEvents;
+                            console.log(`📊 Updated to ${this.calendarEvents.length} calendar events`);
+                            this.buildAllPages();
+                        }
                     } else {
                         console.log('⚠️ No calendar events available');
-                        this.buildAllPages(); // Build with just FJ + warning pages
+                        if (this.calendarEvents.length > 0) {
+                            this.calendarEvents = [];
+                            this.buildAllPages(); // Build with just FJ + warning pages
+                        }
                     }
                 } catch (error) {
                     console.error('Error loading calendar data:', error);
-                    this.buildAllPages(); // Build minimal pages on error
+                } finally {
+                    this.isRefreshing = false;
                 }
             }
 
@@ -627,7 +639,7 @@
                 pageDiv.id = `page-${this.totalPages - 1}`; // Last page
                 
                 pageDiv.innerHTML = `
-                    <div class="warning-title">⚠️ Market Alert</div>
+                    <div class="warning-title">📝 Reminder</div>
                     <div class="warning-message">
                         Other economic events may trigger market volatility. 
                         Always check multiple sources for additional news that could impact trading.
@@ -650,6 +662,18 @@
                 }
             }
 
+            getCountryFlag(countryCode) {
+                const flagMap = {
+                    'USD': '🇺🇸', 'CAD': '🇨🇦', 'EUR': '🇪🇺', 'GBP': '🇬🇧',
+                    'JPY': '🇯🇵', 'AUD': '🇦🇺', 'NZD': '🇳🇿', 'CHF': '🇨🇭',
+                    'CNY': '🇨🇳', 'KRW': '🇰🇷', 'SGD': '🇸🇬', 'HKD': '🇭🇰',
+                    'NOK': '🇳🇴', 'SEK': '🇸🇪', 'DKK': '🇩🇰', 'PLN': '🇵🇱',
+                    'CZK': '🇨🇿', 'HUF': '🇭🇺', 'TRY': '🇹🇷', 'ZAR': '🇿🇦',
+                    'BRL': '🇧🇷', 'MXN': '🇲🇽', 'RUB': '🇷🇺', 'INR': '🇮🇳'
+                };
+                return flagMap[countryCode] || countryCode;
+            }
+            
             createEventItem(item) {
                 const div = document.createElement('div');
                 div.className = 'event-item';
@@ -668,7 +692,7 @@
                 div.innerHTML = `
                     <div class="item-title">${item.title}</div>
                     <div class="event-details">
-                        <span class="currency-flag">${item.country}</span>
+                        <span class="currency-flag">${this.getCountryFlag(item.country)}</span>
                         <span class="event-time">${item.time_until}</span>
                         <span class="impact-badge impact-${item.impact.toLowerCase()}">${item.impact}</span>
                         ${item.status === 'completed' ? '<span class="status-badge">✓</span>' : ''}
@@ -689,7 +713,7 @@
             startRotation() {
                 if (!this.isRotating) return;
                 
-                console.log(`🔄 Starting rotation: ${this.totalPages} pages, ${this.pageInterval}s each`);
+                console.log(`🔄 Starting rotation: ${this.totalPages} pages`);
                 
                 this.rotationTimer = setInterval(() => {
                     this.countdownTimer--;
@@ -698,7 +722,15 @@
                     if (this.countdownTimer <= 0) {
                         this.currentPage = (this.currentPage + 1) % this.totalPages;
                         this.switchToPage(this.currentPage);
-                        this.countdownTimer = this.pageInterval;
+                        
+                        // Set countdown for next page
+                        if (this.currentPage === this.totalPages - 1) {
+                            // Warning page gets 5s
+                            this.countdownTimer = this.warningPageInterval;
+                        } else {
+                            // All other pages get standard time
+                            this.countdownTimer = this.pageInterval;
+                        }
                     }
                 }, 1000);
             }
@@ -730,14 +762,17 @@
             
             getPageName(pageNumber) {
                 if (pageNumber === 0) return 'Financial News';
-                if (pageNumber === this.totalPages - 1) return 'Market Alert';
-                return `Economic Events ${pageNumber}`;
+                if (pageNumber === this.totalPages - 1) return 'Reminder';
+                return 'Economic Events';
             }
 
             startDataRefresh() {
                 setInterval(() => {
-                    console.log('🔄 Refreshing calendar data...');
-                    this.loadCalendarData();
+                    // Only refresh if not currently transitioning
+                    if (!this.isRefreshing) {
+                        console.log('🔄 Refreshing calendar data...');
+                        this.loadCalendarData();
+                    }
                 }, this.refreshInterval * 1000);
             }
             
