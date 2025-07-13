@@ -89,24 +89,27 @@
             height: 100%;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.8s ease-in-out, visibility 0.8s ease-in-out;
-            transition-behavior: allow-discrete;
         }
         
-        @starting-style {
-            .feed-section {
-                opacity: 0;
-            }
+        /* News feed (FJ widget) - no transitions to prevent blur */
+        #newsFeed {
+            transition: none !important;
+        }
+        
+        /* Calendar feed - smooth transitions */
+        #calendarFeed {
+            transition: opacity 0.6s ease-in-out, visibility 0.6s ease-in-out;
+            transition-behavior: allow-discrete;
         }
 
         .feed-section.active {
-            opacity: 1;
-            visibility: visible;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
 
         .feed-section.exit {
-            opacity: 0;
-            visibility: hidden;
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
 
         /* Financial Juice Native Widget Container */
@@ -139,12 +142,13 @@
             height: 100% !important;
             border: none !important;
             border-radius: {{ border_radius }}px !important;
-            transform: translateZ(0) !important;
-            -webkit-font-smoothing: antialiased !important;
-            -moz-osx-font-smoothing: grayscale !important;
-            backface-visibility: hidden !important;
-            image-rendering: -webkit-optimize-contrast !important;
-            image-rendering: crisp-edges !important;
+            /* Remove all transform and transition properties that cause blur */
+            transform: none !important;
+            transition: none !important;
+            animation: none !important;
+            -webkit-font-smoothing: subpixel-antialiased !important;
+            font-smoothing: auto !important;
+            text-rendering: auto !important;
         }
 
         /* Fallback content for when FJ widget is loading */
@@ -547,17 +551,16 @@
                 calendarContent.innerHTML = '';
                 
                 if (calendarData.items && calendarData.items.length > 0) {
-                    // Setup automatic event rotation for stream overlay
-                    console.log(`Loading ${calendarData.items.length} calendar events`);
+                    console.log(`📊 Loading ${calendarData.items.length} calendar events`);
                     this.setupEventRotation(calendarData.items);
                     
-                    // Update timing if we're currently showing calendar
+                    // If we're currently showing calendar, update the duration immediately
                     if (this.currentFeed === 'calendar') {
-                        console.log('Calendar is active, recalculating timing...');
-                        // Don't change current countdown, but update for next rotation
+                        console.log('🔄 Calendar is active, updating duration for new event count');
+                        this.setCurrentFeedDuration();
                     }
                 } else {
-                    // Show fallback message when no high impact events
+                    console.log('⚠️ No calendar events found');
                     const noEventsMessage = this.createNoEventsMessage();
                     calendarContent.appendChild(noEventsMessage);
                     this.calendarEvents = null;
@@ -720,9 +723,7 @@
             switchToFeed(feedType) {
                 if (feedType === this.currentFeed) return;
                 
-                const currentSection = document.getElementById(this.currentFeed + 'Feed');
-                const nextSection = document.getElementById(feedType + 'Feed');
-                const feedTypeElement = document.getElementById('feedType');
+                console.log(`🔄 Switching from ${this.currentFeed} to ${feedType}`);
                 
                 // Clear event rotation timer when switching away from calendar
                 if (this.currentFeed === 'calendar' && this.eventRotationTimer) {
@@ -730,50 +731,65 @@
                     this.eventRotationTimer = null;
                 }
                 
+                // Update current feed FIRST
+                this.currentFeed = feedType;
+                
                 // Update visual indicators
                 document.querySelectorAll('.dot').forEach(dot => {
                     dot.classList.toggle('active', dot.dataset.feed === feedType);
                 });
                 
-                feedTypeElement.textContent = feedType === 'news' ? 'News' : 'Calendar';
+                document.getElementById('feedType').textContent = feedType === 'news' ? 'News' : 'Calendar';
                 
-                // Animate transition using opacity only
-                currentSection.classList.add('exit');
-                nextSection.classList.add('active');
+                // Handle transitions differently for each feed
+                if (feedType === 'news') {
+                    this.switchToNews();
+                } else {
+                    this.switchToCalendar();
+                }
+                
+                // Set duration for this feed
+                this.setCurrentFeedDuration();
+            }
+            
+            switchToNews() {
+                // No transition for news (FJ widget) - instant switch
+                document.getElementById('calendarFeed').classList.remove('active');
+                document.getElementById('calendarFeed').classList.add('exit');
+                document.getElementById('newsFeed').classList.add('active');
                 
                 setTimeout(() => {
-                    currentSection.classList.remove('active', 'exit');
-                    this.currentFeed = feedType;
-                    
-                    // Restart event rotation if switching to calendar
-                    if (feedType === 'calendar' && this.calendarEvents && this.calendarEvents.length > 4) {
-                        this.currentEventPage = 0;
-                        this.showEventPage(0);
-                        this.startEventRotation();
-                    }
-                }, 800); // Match transition duration
+                    document.getElementById('calendarFeed').classList.remove('exit');
+                }, 100);
+            }
+            
+            switchToCalendar() {
+                // Smooth transition for calendar only
+                document.getElementById('newsFeed').classList.remove('active');
+                document.getElementById('calendarFeed').classList.add('active');
+                
+                // Start event rotation if needed
+                if (this.calendarEvents && this.calendarEvents.length > 4) {
+                    this.currentEventPage = 0;
+                    this.showEventPage(0);
+                    this.startEventRotation();
+                }
             }
 
             startRotation() {
                 if (!this.isRotating) return;
                 
-                // Set initial countdown - we start on 'news' so next will be 'calendar'
-                // Use a shorter initial time for news, then proper timing for calendar
-                this.countdownTimer = this.rotationInterval;
-                console.log(`Starting rotation: ${this.countdownTimer}s on news, then switching to calendar`);
+                // Start with news feed duration
+                this.setCurrentFeedDuration();
                 
-                setInterval(() => {
+                this.rotationTimer = setInterval(() => {
                     this.countdownTimer--;
                     document.getElementById('countdown').textContent = this.countdownTimer + 's';
                     
                     if (this.countdownTimer <= 0) {
                         const nextFeed = this.currentFeed === 'news' ? 'calendar' : 'news';
-                        console.log(`Switching from ${this.currentFeed} to ${nextFeed}`);
+                        console.log(`Timer expired. Switching from ${this.currentFeed} to ${nextFeed}`);
                         this.switchToFeed(nextFeed);
-                        
-                        // Set countdown for the NEXT switch (what comes after nextFeed)
-                        const followingFeed = nextFeed === 'news' ? 'calendar' : 'news';
-                        this.resetCountdownForNextFeed(followingFeed);
                     }
                 }, 1000);
             }
@@ -781,16 +797,18 @@
             calculateDynamicRotationTime() {
                 // Calculate how long to spend on calendar based on number of events
                 if (!this.calendarEvents || this.calendarEvents.length <= 4) {
+                    console.log(`📅 Few events (${this.calendarEvents?.length || 0}), using standard ${this.rotationInterval}s`);
                     return this.rotationInterval; // Standard time for few events
                 }
                 
-                const totalPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
-                const timePerPage = 7; // 7 seconds per page for better readability
+                const totalPages = Math.ceil(this.calendarEvents.length / 4); // 4 events per page
+                const timePerPage = 8; // 8 seconds per page for good readability
                 const totalCalendarTime = totalPages * timePerPage;
-                const maxTime = 35; // Maximum 35 seconds on calendar
+                const maxTime = 40; // Maximum 40 seconds on calendar
+                const finalTime = Math.min(totalCalendarTime, maxTime);
                 
-                console.log(`Calendar calculation: ${this.calendarEvents.length} events, ${totalPages} pages, ${timePerPage}s per page`);
-                return Math.min(totalCalendarTime, maxTime);
+                console.log(`📅 Calendar timing: ${this.calendarEvents.length} events → ${totalPages} pages × ${timePerPage}s = ${finalTime}s`);
+                return finalTime;
             }
 
             startDataRefresh() {
@@ -800,16 +818,16 @@
                 }, this.refreshInterval * 1000);
             }
 
-            resetCountdownForNextFeed(nextFeed) {
-                // Determine timing based on what feed we're switching TO
-                if (this.dynamicTiming && nextFeed === 'calendar' && this.calendarEvents) {
-                    // Switching TO calendar - use dynamic timing based on event count
+            setCurrentFeedDuration() {
+                // Set duration based on what feed we're currently showing
+                if (this.currentFeed === 'calendar' && this.calendarEvents && this.calendarEvents.length > 0) {
+                    // We're on calendar - calculate dynamic time
                     this.countdownTimer = this.calculateDynamicRotationTime();
-                    console.log(`Setting ${this.countdownTimer}s for upcoming calendar (${this.calendarEvents.length} events)`);
+                    console.log(`📅 Calendar duration set: ${this.countdownTimer}s for ${this.calendarEvents.length} events`);
                 } else {
-                    // Switching TO news or no calendar events - use standard timing
+                    // We're on news - use standard time
                     this.countdownTimer = this.rotationInterval;
-                    console.log(`Setting ${this.countdownTimer}s for upcoming ${nextFeed}`);
+                    console.log(`📰 News duration set: ${this.countdownTimer}s`);
                 }
             }
 
