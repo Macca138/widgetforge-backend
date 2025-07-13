@@ -21,8 +21,6 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
-            font-smooth: always;
-            -webkit-text-stroke: 0.01em transparent;
         }
 
         .widget-container {
@@ -90,21 +88,25 @@
             width: 100%;
             height: 100%;
             opacity: 0;
-            transform: perspective(1px) translateX(100%) translateZ(0);
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            backface-visibility: hidden;
-            filter: blur(0px);
-            z-index: 1;
+            visibility: hidden;
+            transition: opacity 0.8s ease-in-out, visibility 0.8s ease-in-out;
+            transition-behavior: allow-discrete;
+        }
+        
+        @starting-style {
+            .feed-section {
+                opacity: 0;
+            }
         }
 
         .feed-section.active {
             opacity: 1;
-            transform: perspective(1px) translateX(0) translateZ(0);
+            visibility: visible;
         }
 
         .feed-section.exit {
             opacity: 0;
-            transform: perspective(1px) translateX(-100%) translateZ(0);
+            visibility: hidden;
         }
 
         /* Financial Juice Native Widget Container */
@@ -210,17 +212,15 @@
             padding: {{ item_padding|int - 2 }}px;
             margin-bottom: {{ item_spacing|int - 2 }}px;
             border: 1px solid {{ accent_color }}40;
-            transition: all 0.3s ease;
+            transition: opacity 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
             cursor: pointer;
             position: relative;
-            filter: blur(0px);
-            z-index: 1;
+            opacity: 1;
         }
 
         .event-item:hover {
             background: {{ hover_color }};
             border-color: {{ accent_color }}60;
-            transform: perspective(1px) translateY(-1px) translateZ(0);
         }
 
         .item-title {
@@ -229,8 +229,6 @@
             color: {{ news_title_color }};
             margin-bottom: 6px;
             line-height: 1.4;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         .event-item.high-impact .item-title,
@@ -239,9 +237,6 @@
             font-weight: 600;
             color: #ffffff;
             line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-shadow: 0 0 1px rgba(0,0,0,0.3);
         }
 
         .item-meta {
@@ -612,6 +607,12 @@
             }
 
             setupEventRotation(events) {
+                // Clear any existing event rotation timer
+                if (this.eventRotationTimer) {
+                    clearInterval(this.eventRotationTimer);
+                    this.eventRotationTimer = null;
+                }
+                
                 // Setup automatic event rotation for stream overlay
                 if (!events || events.length <= 4) {
                     // If 4 or fewer events, show all at once
@@ -622,7 +623,6 @@
                 this.calendarEvents = events;
                 this.currentEventPage = 0;
                 this.eventsPerPage = 4;
-                this.eventRotationInterval = 6; // 6 seconds per page
                 
                 this.showEventPage(0);
                 this.startEventRotation();
@@ -640,18 +640,14 @@
                 calendarContent.innerHTML = '';
                 pageEvents.forEach((event, index) => {
                     const eventItem = this.createEventItem(event);
-                    eventItem.style.opacity = '0';
-                    eventItem.style.transform = 'perspective(1px) translateY(20px) translateZ(0)';
-                    eventItem.style.filter = 'blur(0px)';
-                    eventItem.style.zIndex = '1';
+                    eventItem.style.opacity = '0.4';
+                    eventItem.style.transition = 'opacity 0.5s ease';
                     calendarContent.appendChild(eventItem);
                     
-                    // Stagger animations
+                    // Stagger animations - fade in smoothly
                     setTimeout(() => {
-                        eventItem.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
                         eventItem.style.opacity = '1';
-                        eventItem.style.transform = 'perspective(1px) translateY(0) translateZ(0)';
-                    }, index * 100);
+                    }, index * 150);
                 });
             }
             
@@ -662,41 +658,34 @@
                 
                 events.forEach((event, index) => {
                     const eventItem = this.createEventItem(event);
-                    eventItem.style.opacity = '0';
-                    eventItem.style.transform = 'perspective(1px) translateY(20px) translateZ(0)';
-                    eventItem.style.filter = 'blur(0px)';
-                    eventItem.style.zIndex = '1';
+                    eventItem.style.opacity = '0.4';
+                    eventItem.style.transition = 'opacity 0.5s ease';
                     calendarContent.appendChild(eventItem);
                     
-                    // Stagger animations
+                    // Stagger animations - fade in smoothly
                     setTimeout(() => {
-                        eventItem.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
                         eventItem.style.opacity = '1';
-                        eventItem.style.transform = 'perspective(1px) translateY(0) translateZ(0)';
-                    }, index * 100);
+                    }, index * 150);
                 });
             }
             
             startEventRotation() {
                 if (!this.calendarEvents || this.calendarEvents.length <= this.eventsPerPage) return;
                 
-                // Calculate total pages and flexible timing
+                // Calculate total pages and use dynamic timing
                 const totalPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
-                const totalEventTime = totalPages * this.eventRotationInterval;
-                const maxEventTime = 25; // Maximum time to spend on events (25 seconds)
+                const totalCalendarTime = this.calculateDynamicRotationTime();
                 
-                // Adjust rotation interval if needed to fit within max time
-                let adjustedInterval = this.eventRotationInterval;
-                if (totalEventTime > maxEventTime) {
-                    adjustedInterval = Math.max(3, Math.floor(maxEventTime / totalPages)); // Minimum 3 seconds per page
-                }
+                // Calculate optimal time per page based on total allocated calendar time
+                let timePerPage = Math.floor(totalCalendarTime / totalPages);
+                timePerPage = Math.max(4, Math.min(timePerPage, 8)); // Between 4-8 seconds per page
                 
-                console.log(`Calendar rotation: ${totalPages} pages, ${adjustedInterval}s per page, total: ${totalPages * adjustedInterval}s`);
+                console.log(`Event rotation: ${totalPages} pages, ${timePerPage}s per page, total calendar time: ${totalCalendarTime}s`);
                 
-                setInterval(() => {
+                this.eventRotationTimer = setInterval(() => {
                     this.currentEventPage = (this.currentEventPage + 1) % totalPages;
                     this.showEventPage(this.currentEventPage);
-                }, adjustedInterval * 1000);
+                }, timePerPage * 1000);
             }
 
             switchToFeed(feedType) {
@@ -706,6 +695,12 @@
                 const nextSection = document.getElementById(feedType + 'Feed');
                 const feedTypeElement = document.getElementById('feedType');
                 
+                // Clear event rotation timer when switching away from calendar
+                if (this.currentFeed === 'calendar' && this.eventRotationTimer) {
+                    clearInterval(this.eventRotationTimer);
+                    this.eventRotationTimer = null;
+                }
+                
                 // Update visual indicators
                 document.querySelectorAll('.dot').forEach(dot => {
                     dot.classList.toggle('active', dot.dataset.feed === feedType);
@@ -713,18 +708,28 @@
                 
                 feedTypeElement.textContent = feedType === 'news' ? 'News' : 'Calendar';
                 
-                // Animate transition
+                // Animate transition using opacity only
                 currentSection.classList.add('exit');
                 nextSection.classList.add('active');
                 
                 setTimeout(() => {
                     currentSection.classList.remove('active', 'exit');
                     this.currentFeed = feedType;
-                }, 600);
+                    
+                    // Restart event rotation if switching to calendar
+                    if (feedType === 'calendar' && this.calendarEvents && this.calendarEvents.length > 4) {
+                        this.currentEventPage = 0;
+                        this.showEventPage(0);
+                        this.startEventRotation();
+                    }
+                }, 800); // Match transition duration
             }
 
             startRotation() {
                 if (!this.isRotating) return;
+                
+                // Set initial countdown based on starting feed
+                this.resetCountdown();
                 
                 setInterval(() => {
                     this.countdownTimer--;
@@ -745,10 +750,11 @@
                 }
                 
                 const totalPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
-                const timePerPage = 6; // 6 seconds per page
+                const timePerPage = 7; // 7 seconds per page for better readability
                 const totalCalendarTime = totalPages * timePerPage;
-                const maxTime = 30; // Maximum 30 seconds on calendar
+                const maxTime = 35; // Maximum 35 seconds on calendar
                 
+                console.log(`Calendar calculation: ${this.calendarEvents.length} events, ${totalPages} pages, ${timePerPage}s per page`);
                 return Math.min(totalCalendarTime, maxTime);
             }
 
@@ -760,10 +766,13 @@
             }
 
             resetCountdown() {
-                // Use dynamic timing if we have calendar events and are switching to news
+                // Determine timing based on current feed (what we're staying on)
                 if (this.dynamicTiming && this.currentFeed === 'calendar' && this.calendarEvents) {
+                    // Currently on calendar - use dynamic timing based on event count
                     this.countdownTimer = this.calculateDynamicRotationTime();
+                    console.log(`Dynamic calendar timing: ${this.countdownTimer}s for ${this.calendarEvents.length} events`);
                 } else {
+                    // On news or no calendar events - use standard timing
                     this.countdownTimer = this.rotationInterval;
                 }
             }
