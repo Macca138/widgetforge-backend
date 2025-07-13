@@ -715,6 +715,8 @@
                 const targetPage = document.getElementById(`page-${pageNumber}`);
                 if (targetPage) {
                     targetPage.classList.add('active');
+                } else {
+                    console.error(`❌ Page ${pageNumber} not found!`);
                 }
                 
                 // Update indicators
@@ -737,29 +739,6 @@
                     console.log('🔄 Refreshing calendar data...');
                     this.loadCalendarData();
                 }, this.refreshInterval * 1000);
-            }
-            
-            
-            
-
-            
-
-            startRotation() {
-                if (!this.isRotating) return;
-                
-                // Start with news feed duration
-                this.setCurrentFeedDuration();
-                
-                this.rotationTimer = setInterval(() => {
-                    this.countdownTimer--;
-                    document.getElementById('countdown').textContent = this.countdownTimer + 's';
-                    
-                    if (this.countdownTimer <= 0) {
-                        const nextFeed = this.currentFeed === 'news' ? 'calendar' : 'news';
-                        console.log(`Timer expired. Switching from ${this.currentFeed} to ${nextFeed}`);
-                        this.switchToFeed(nextFeed);
-                    }
-                }, 1000);
             }
             
 
