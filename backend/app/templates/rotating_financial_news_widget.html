@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
@@ -663,6 +664,13 @@
             }
 
             getCountryFlag(countryCode) {
+                // Test if emojis are supported
+                const testEmoji = '🇺🇸';
+                if (!this.supportsEmoji(testEmoji)) {
+                    // Fallback to styled currency codes with colors
+                    return this.getStyledCurrencyCode(countryCode);
+                }
+                
                 const flagMap = {
                     'USD': '🇺🇸', 'CAD': '🇨🇦', 'EUR': '🇪🇺', 'GBP': '🇬🇧',
                     'JPY': '🇯🇵', 'AUD': '🇦🇺', 'NZD': '🇳🇿', 'CHF': '🇨🇭',
@@ -671,7 +679,30 @@
                     'CZK': '🇨🇿', 'HUF': '🇭🇺', 'TRY': '🇹🇷', 'ZAR': '🇿🇦',
                     'BRL': '🇧🇷', 'MXN': '🇲🇽', 'RUB': '🇷🇺', 'INR': '🇮🇳'
                 };
-                return flagMap[countryCode] || countryCode;
+                return flagMap[countryCode] || this.getStyledCurrencyCode(countryCode);
+            }
+            
+            supportsEmoji(emoji) {
+                // Simple emoji support detection
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '100px -apple-system,system-ui';
+                ctx.fillText(emoji, 0, 0);
+                return ctx.getImageData(0, 0, 1, 1).data[0] !== 0;
+            }
+            
+            getStyledCurrencyCode(countryCode) {
+                // Colored currency codes as fallback
+                const colorMap = {
+                    'USD': '#4CAF50', 'CAD': '#FF5722', 'EUR': '#2196F3', 'GBP': '#9C27B0',
+                    'JPY': '#FF9800', 'AUD': '#8BC34A', 'NZD': '#00BCD4', 'CHF': '#795548',
+                    'CNY': '#F44336', 'KRW': '#607D8B', 'SGD': '#009688', 'HKD': '#FFC107',
+                    'NOK': '#3F51B5', 'SEK': '#FFEB3B', 'DKK': '#E91E63', 'PLN': '#673AB7'
+                };
+                const color = colorMap[countryCode] || '#666666';
+                return `<span style="background: ${color}; color: white; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">${countryCode}</span>`;
             }
             
             createEventItem(item) {
@@ -689,10 +720,12 @@
                     forecastHtml = `<div class="forecast-data">${parts.join(' | ')}</div>`;
                 }
                 
+                const countryDisplay = this.getCountryFlag(item.country);
+                
                 div.innerHTML = `
                     <div class="item-title">${item.title}</div>
                     <div class="event-details">
-                        <span class="currency-flag">${this.getCountryFlag(item.country)}</span>
+                        <span class="currency-flag">${countryDisplay}</span>
                         <span class="event-time">${item.time_until}</span>
                         <span class="impact-badge impact-${item.impact.toLowerCase()}">${item.impact}</span>
                         ${item.status === 'completed' ? '<span class="status-badge">✓</span>' : ''}
