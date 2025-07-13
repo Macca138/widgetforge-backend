@@ -12,9 +12,50 @@ from app.services.cache_service import set_price
 
 
 def connect_mt5():
-    if not mt5.initialize(path="C:/MT5Terminals/Account1/terminal64.exe"):
-        raise RuntimeError("❌ MT5 initialization failed")
-    print("✅ Connected to MT5")
+    """Connect to MT5 with multiple path attempts"""
+    # Try multiple common MT5 paths
+    mt5_paths = [
+        "C:/MT5Terminals/Account1/terminal64.exe",  # Original custom path
+        None,  # Auto-detect (default)
+        "C:/Program Files/MetaTrader 5/terminal64.exe",  # Standard installation
+        "C:/Program Files (x86)/MetaTrader 5/terminal64.exe",  # 32-bit system
+    ]
+    
+    for i, path in enumerate(mt5_paths):
+        try:
+            if path is None:
+                print("🔍 Attempting MT5 connection with auto-detect...")
+                success = mt5.initialize()
+            else:
+                print(f"🔍 Attempting MT5 connection: {path}")
+                success = mt5.initialize(path=path)
+            
+            if success:
+                terminal_info = mt5.terminal_info()
+                account_info = mt5.account_info()
+                print("✅ Connected to MT5")
+                if terminal_info:
+                    print(f"   Terminal: {terminal_info.name}")
+                    print(f"   Path: {terminal_info.path}")
+                if account_info:
+                    print(f"   Account: {account_info.login} on {account_info.server}")
+                else:
+                    print("   ⚠️ Not logged into trading account")
+                return
+        except Exception as e:
+            print(f"   ❌ Failed with {path}: {e}")
+            continue
+    
+    # If all attempts failed
+    error_info = mt5.last_error()
+    print("❌ All MT5 connection attempts failed!")
+    print(f"   Last error: {error_info}")
+    print("💡 Troubleshooting tips:")
+    print("   1. Ensure MetaTrader 5 is running")
+    print("   2. Check if terminal64.exe path is correct") 
+    print("   3. Verify MT5 allows DLL imports (Tools > Options > Expert Advisors)")
+    print("   4. Try running the diagnostic script: python diagnose_mt5.py")
+    raise RuntimeError("❌ MT5 initialization failed after trying all paths")
 
 
 def get_previous_close(symbol):
