@@ -90,21 +90,21 @@
             width: 100%;
             height: 100%;
             opacity: 0;
-            transform: translateX(100%);
+            transform: perspective(1px) translateX(100%) translateZ(0);
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: transform, opacity;
             backface-visibility: hidden;
-            transform-style: preserve-3d;
+            filter: blur(0px);
+            z-index: 1;
         }
 
         .feed-section.active {
             opacity: 1;
-            transform: translateX(0) translateZ(0);
+            transform: perspective(1px) translateX(0) translateZ(0);
         }
 
         .feed-section.exit {
             opacity: 0;
-            transform: translateX(-100%) translateZ(0);
+            transform: perspective(1px) translateX(-100%) translateZ(0);
         }
 
         /* Financial Juice Native Widget Container */
@@ -213,12 +213,14 @@
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
+            filter: blur(0px);
+            z-index: 1;
         }
 
         .event-item:hover {
             background: {{ hover_color }};
             border-color: {{ accent_color }}60;
-            transform: translateY(-1px) translateZ(0);
+            transform: perspective(1px) translateY(-1px) translateZ(0);
         }
 
         .item-title {
@@ -473,6 +475,7 @@
                 this.refreshInterval = {{ refresh_interval }};
                 this.countdownTimer = this.rotationInterval;
                 this.isRotating = {{ auto_rotate }};
+                this.dynamicTiming = true; // Allow flexible timing based on content
                 
                 this.initializeWidget();
                 this.startRotation();
@@ -610,15 +613,16 @@
 
             setupEventRotation(events) {
                 // Setup automatic event rotation for stream overlay
-                if (!events || events.length <= 3) {
-                    // If 3 or fewer events, show all at once
+                if (!events || events.length <= 4) {
+                    // If 4 or fewer events, show all at once
+                    this.showAllEvents(events);
                     return;
                 }
                 
                 this.calendarEvents = events;
                 this.currentEventPage = 0;
-                this.eventsPerPage = 3;
-                this.eventRotationInterval = 5; // 5 seconds per page
+                this.eventsPerPage = 4;
+                this.eventRotationInterval = 6; // 6 seconds per page
                 
                 this.showEventPage(0);
                 this.startEventRotation();
@@ -637,14 +641,38 @@
                 pageEvents.forEach((event, index) => {
                     const eventItem = this.createEventItem(event);
                     eventItem.style.opacity = '0';
-                    eventItem.style.transform = 'translateY(20px)';
+                    eventItem.style.transform = 'perspective(1px) translateY(20px) translateZ(0)';
+                    eventItem.style.filter = 'blur(0px)';
+                    eventItem.style.zIndex = '1';
                     calendarContent.appendChild(eventItem);
                     
                     // Stagger animations
                     setTimeout(() => {
                         eventItem.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
                         eventItem.style.opacity = '1';
-                        eventItem.style.transform = 'translateY(0)';
+                        eventItem.style.transform = 'perspective(1px) translateY(0) translateZ(0)';
+                    }, index * 100);
+                });
+            }
+            
+            showAllEvents(events) {
+                // Show all events at once if 4 or fewer
+                const calendarContent = document.getElementById('calendarContent');
+                calendarContent.innerHTML = '';
+                
+                events.forEach((event, index) => {
+                    const eventItem = this.createEventItem(event);
+                    eventItem.style.opacity = '0';
+                    eventItem.style.transform = 'perspective(1px) translateY(20px) translateZ(0)';
+                    eventItem.style.filter = 'blur(0px)';
+                    eventItem.style.zIndex = '1';
+                    calendarContent.appendChild(eventItem);
+                    
+                    // Stagger animations
+                    setTimeout(() => {
+                        eventItem.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                        eventItem.style.opacity = '1';
+                        eventItem.style.transform = 'perspective(1px) translateY(0) translateZ(0)';
                     }, index * 100);
                 });
             }
@@ -652,10 +680,23 @@
             startEventRotation() {
                 if (!this.calendarEvents || this.calendarEvents.length <= this.eventsPerPage) return;
                 
+                // Calculate total pages and flexible timing
+                const totalPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
+                const totalEventTime = totalPages * this.eventRotationInterval;
+                const maxEventTime = 25; // Maximum time to spend on events (25 seconds)
+                
+                // Adjust rotation interval if needed to fit within max time
+                let adjustedInterval = this.eventRotationInterval;
+                if (totalEventTime > maxEventTime) {
+                    adjustedInterval = Math.max(3, Math.floor(maxEventTime / totalPages)); // Minimum 3 seconds per page
+                }
+                
+                console.log(`Calendar rotation: ${totalPages} pages, ${adjustedInterval}s per page, total: ${totalPages * adjustedInterval}s`);
+                
                 setInterval(() => {
-                    this.currentEventPage = (this.currentEventPage + 1) % Math.ceil(this.calendarEvents.length / this.eventsPerPage);
+                    this.currentEventPage = (this.currentEventPage + 1) % totalPages;
                     this.showEventPage(this.currentEventPage);
-                }, this.eventRotationInterval * 1000);
+                }, adjustedInterval * 1000);
             }
 
             switchToFeed(feedType) {
@@ -696,6 +737,20 @@
                     }
                 }, 1000);
             }
+            
+            calculateDynamicRotationTime() {
+                // Calculate how long to spend on calendar based on number of events
+                if (!this.calendarEvents || this.calendarEvents.length <= 4) {
+                    return this.rotationInterval; // Standard time for few events
+                }
+                
+                const totalPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
+                const timePerPage = 6; // 6 seconds per page
+                const totalCalendarTime = totalPages * timePerPage;
+                const maxTime = 30; // Maximum 30 seconds on calendar
+                
+                return Math.min(totalCalendarTime, maxTime);
+            }
 
             startDataRefresh() {
                 setInterval(() => {
@@ -705,7 +760,12 @@
             }
 
             resetCountdown() {
-                this.countdownTimer = this.rotationInterval;
+                // Use dynamic timing if we have calendar events and are switching to news
+                if (this.dynamicTiming && this.currentFeed === 'calendar' && this.calendarEvents) {
+                    this.countdownTimer = this.calculateDynamicRotationTime();
+                } else {
+                    this.countdownTimer = this.rotationInterval;
+                }
             }
 
             showCalendarError(message) {
