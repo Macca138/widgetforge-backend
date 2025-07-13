@@ -723,7 +723,7 @@ async def rotating_financial_news_widget(request: Request):
         "request": request,
         # Widget configuration
         "title": params.get("title", "Market News and Economic Events"),
-        "rotation_interval": int(params.get("rotation_interval", "15")),
+        "rotation_interval": int(params.get("rotation_interval", "10")),
         "refresh_interval": int(params.get("refresh_interval", "60")),
         "auto_rotate": params.get("auto_rotate", "true").lower(),
         "news_count": int(params.get("news_count", "8")),

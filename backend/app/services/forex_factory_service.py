@@ -10,24 +10,33 @@ logger = logging.getLogger(__name__)
 class ForexFactoryService:
     def __init__(self):
         self.cache_ttl = 3600  # 1 hour cache for calendar data
-        self.data_dir = os.path.join(os.path.dirname(__file__), "..", "..", ".cache")
+        self.data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
         os.makedirs(self.data_dir, exist_ok=True)
     
     def load_latest_calendar_data(self) -> Optional[List[Dict]]:
         """Load the most recent Forex Factory calendar JSON file"""
         try:
-            # Look for the most recent JSON file in data directory
+            # First, try to load the current file (updated by scheduled job)
+            current_file = os.path.join(self.data_dir, 'ff_calendar_current.json')
+            if os.path.exists(current_file):
+                logger.info("Loading calendar data from: ff_calendar_current.json")
+                with open(current_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                return data
+            
+            # Fallback: Look for the most recent JSON file in data directory
             json_files = [f for f in os.listdir(self.data_dir) if f.startswith('ff_calendar') and f.endswith('.json')]
             
             if not json_files:
                 logger.warning("No Forex Factory calendar files found in data directory")
+                logger.info("To enable calendar data, run the update script: python update_ff_calendar.py")
                 return None
             
             # Get the most recent file
             latest_file = max(json_files, key=lambda x: os.path.getctime(os.path.join(self.data_dir, x)))
             file_path = os.path.join(self.data_dir, latest_file)
             
-            logger.info(f"Loading calendar data from: {latest_file}")
+            logger.info(f"Loading calendar data from fallback file: {latest_file}")
             
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -182,6 +191,66 @@ class ForexFactoryService:
             enhanced_events.append(enhanced_event)
         
         return enhanced_events
+    
+    def _is_news_event_match(self, news_title: str, event_title: str, event_country: str) -> bool:
+        """Check if RSS news matches Forex Factory event"""
+        # Common economic indicators and their variations
+        economic_mappings = {
+            'unemployment': ['unemployment', 'jobless', 'employment', 'employment change', 'jobs'],
+            'inflation': ['inflation', 'cpi', 'consumer price', 'price index'],
+            'gdp': ['gdp', 'gross domestic product', 'economic growth'],
+            'interest rate': ['interest rate', 'rate decision', 'fed rate', 'federal rate', 'rate'],
+            'retail sales': ['retail sales', 'consumer spending'],
+            'manufacturing': ['manufacturing', 'factory', 'industrial', 'pmi'],
+            'employment': ['employment', 'jobs', 'payroll', 'nonfarm', 'employment change', 'jobless claims'],
+            'trade': ['trade', 'exports', 'imports', 'trade balance'],
+            'housing': ['housing', 'home sales', 'mortgage', 'building permits'],
+            'central bank': ['fed', 'ecb', 'boe', 'boj', 'central bank', 'fomc'],
+            'earnings': ['earnings', 'wages', 'income'],
+            'economic data': ['economic', 'data', 'statistics', 'report']
+        }
+        
+        # Check for currency/country mentions
+        currency_mappings = {
+            'usd': ['us', 'usa', 'united states', 'american', 'dollar'],
+            'eur': ['eu', 'euro', 'european', 'eurozone'],  
+            'gbp': ['uk', 'british', 'britain', 'england', 'pound'],
+            'jpy': ['japan', 'japanese', 'yen'],
+            'aud': ['australia', 'australian', 'aussie'],
+            'cad': ['canada', 'canadian', 'cad'],
+            'chf': ['swiss', 'switzerland', 'franc'],
+            'nzd': ['new zealand', 'nz', 'kiwi']
+        }
+        
+        # Check if news mentions the country/currency
+        country_mentioned = False
+        if event_country in currency_mappings:
+            country_terms = currency_mappings[event_country]
+            if any(term in news_title for term in country_terms):
+                country_mentioned = True
+        
+        if country_mentioned:
+            # Check if they share common economic terms
+            for category, terms in economic_mappings.items():
+                if any(term in event_title for term in terms) and any(term in news_title for term in terms):
+                    return True
+        
+        # Direct title matching (for exact or very similar titles)
+        if event_title and len(event_title) > 10:
+            # Remove common words and check similarity
+            event_words = set(event_title.split())
+            news_words = set(news_title.split())
+            common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
+            
+            event_words = event_words - common_words
+            news_words = news_words - common_words
+            
+            if len(event_words) > 2 and len(news_words) > 2:
+                overlap = len(event_words.intersection(news_words))
+                if overlap >= 2:  # At least 2 significant words match
+                    return True
+        
+        return False
     
     def _is_specific_news_event_match(self, news_title: str, event_title: str, event_country: str) -> bool:
         """More specific matching to ensure correct news matches correct event"""
@@ -381,6 +450,107 @@ class ForexFactoryService:
         except Exception as e:
             logger.error(f"Failed to get today's events: {e}")
             return []
+    
+    def get_recent_high_impact_event(self) -> Optional[Dict]:
+        """Get the most recent high-impact event from today (for pinned display)"""
+        cache_key = "ff_recent_high_impact"
+        
+        try:
+            # Try cache first
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                return cached_data
+            
+            # Load calendar data
+            calendar_data = self.load_latest_calendar_data()
+            if not calendar_data:
+                return None
+            
+            now = datetime.now(timezone.utc)
+            today = now.date()
+            recent_high_impact = None
+            latest_timestamp = 0
+            
+            for event in calendar_data:
+                # Only high-impact events
+                if event.get('impact', '').lower() != 'high':
+                    continue
+                
+                event_date = self.parse_event_date(event.get('date', ''))
+                if not event_date:
+                    continue
+                
+                # Convert to UTC
+                if event_date.tzinfo:
+                    event_utc = event_date.astimezone(timezone.utc)
+                else:
+                    event_utc = event_date.replace(tzinfo=timezone.utc)
+                
+                # Only today's events that have already occurred
+                if event_utc.date() == today and event_utc <= now:
+                    timestamp = int(event_utc.timestamp())
+                    if timestamp > latest_timestamp:
+                        latest_timestamp = timestamp
+                        recent_high_impact = {
+                            'title': event.get('title', 'Economic Event'),
+                            'country': event.get('country', 'GLOBAL'),
+                            'date': event.get('date', ''),
+                            'impact': event.get('impact', 'High'),
+                            'forecast': event.get('forecast', ''),
+                            'previous': event.get('previous', ''),
+                            'time_until': self.calculate_time_until(event_date),
+                            'timestamp': timestamp
+                        }
+            
+            # Cache for 15 minutes
+            if recent_high_impact:
+                cache.set(cache_key, recent_high_impact, expire=900)
+            
+            return recent_high_impact
+            
+        except Exception as e:
+            logger.error(f"Failed to get recent high-impact event: {e}")
+            return None
+    
+    def get_calendar_summary(self) -> Dict:
+        """Get summary statistics of the calendar data"""
+        try:
+            calendar_data = self.load_latest_calendar_data()
+            if not calendar_data:
+                return {"error": "No calendar data available"}
+            
+            total_events = len(calendar_data)
+            high_impact = len([e for e in calendar_data if e.get('impact') == 'High'])
+            medium_impact = len([e for e in calendar_data if e.get('impact') == 'Medium'])
+            low_impact = len([e for e in calendar_data if e.get('impact') == 'Low'])
+            
+            # Get date range
+            dates = []
+            for event in calendar_data:
+                event_date = self.parse_event_date(event.get('date', ''))
+                if event_date:
+                    dates.append(event_date)
+            
+            date_range = {}
+            if dates:
+                dates.sort()
+                date_range = {
+                    'start': dates[0].strftime('%Y-%m-%d'),
+                    'end': dates[-1].strftime('%Y-%m-%d')
+                }
+            
+            return {
+                'total_events': total_events,
+                'high_impact': high_impact,
+                'medium_impact': medium_impact,
+                'low_impact': low_impact,
+                'date_range': date_range,
+                'last_updated': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get calendar summary: {e}")
+            return {"error": str(e)}
 
 # Create singleton instance
 forex_factory_service = ForexFactoryService()

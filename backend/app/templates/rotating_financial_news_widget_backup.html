@@ -99,103 +99,13 @@
             transform: translateX(-100%);
         }
 
-        /* Financial Juice Native Widget Container */
-        .fj-native-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .fj-widget-wrapper {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            background: {{ item_bg_color }};
-            border-radius: {{ border_radius }}px;
-            overflow: hidden;
-        }
-
-        /* Override Financial Juice widget styles to match our theme */
-        .fj-widget-wrapper iframe,
-        .fj-widget-wrapper > div {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            border-radius: {{ border_radius }}px !important;
-        }
-
-        /* Fallback content for when FJ widget is loading */
-        .fj-fallback {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: {{ secondary_color }};
-            font-size: {{ font_size }}px;
-            background: {{ item_bg_color }};
-            border-radius: {{ border_radius }}px;
-            border: 1px solid {{ accent_color }}40;
-        }
-
-        /* Calendar section styles */
-        .pinned-item {
-            background: {{ high_impact_bg }};
-            border: 1px solid {{ high_impact_color }}40;
-            border-radius: {{ border_radius }}px;
-            padding: {{ item_padding }}px;
-            margin-bottom: {{ item_spacing }}px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .pinned-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: {{ high_impact_color }};
-        }
-
-        .pinned-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: {{ high_impact_color }};
-            color: white;
-            font-size: {{ badge_font_size }}px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 10px;
-            text-transform: uppercase;
-        }
-
-        .pinned-title {
-            font-size: {{ news_title_size|int + 2 }}px;
-            font-weight: 500;
-            color: #ffffff;
-            margin-bottom: 4px;
-            margin-right: 60px;
-            line-height: 1.4;
-        }
-
-        .pinned-meta {
-            font-size: {{ meta_font_size }}px;
-            color: {{ meta_color }};
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         .feed-content {
             height: calc(100% - 60px);
             overflow: hidden;
             padding-bottom: 20px;
         }
 
-        .event-item {
+        .news-item, .event-item {
             background: {{ item_bg_color }};
             border-radius: {{ border_radius }}px;
             padding: {{ item_padding }}px;
@@ -206,10 +116,25 @@
             position: relative;
         }
 
-        .event-item:hover {
+        .news-item:hover, .event-item:hover {
             background: {{ hover_color }};
             border-color: {{ accent_color }}60;
             transform: translateY(-1px);
+        }
+
+        .news-item.high-impact {
+            background: {{ high_impact_bg }};
+            border-color: {{ high_impact_color }}40;
+        }
+
+        .news-item.high-impact::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: {{ high_impact_color }};
         }
 
         .item-title {
@@ -220,12 +145,8 @@
             line-height: 1.4;
         }
 
-        .event-item.high-impact .item-title,
-        .pinned-item .item-title {
-            font-size: {{ news_title_size|int + 2 }}px;
-            font-weight: 500;
-            color: #ffffff;
-            line-height: 1.5;
+        .news-item.high-impact .item-title {
+            color: {{ high_impact_text_color }};
         }
 
         .item-meta {
@@ -313,37 +234,6 @@
             margin: 20px 0;
         }
 
-        .no-events-message {
-            background: {{ item_bg_color }};
-            border: 1px solid {{ accent_color }}60;
-            border-radius: {{ border_radius }}px;
-            padding: {{ item_padding }}px;
-            margin: {{ item_spacing }}px 0;
-            text-align: center;
-            color: #ffffff;
-        }
-
-        .no-events-title {
-            font-size: {{ news_title_size|int + 1 }}px;
-            font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 8px;
-        }
-
-        .no-events-subtitle {
-            font-size: {{ small_font_size|int + 1 }}px;
-            color: #e2e8f0;
-            line-height: 1.4;
-            margin-bottom: 8px;
-        }
-
-        .no-events-disclaimer {
-            font-size: {{ meta_font_size|int + 1 }}px;
-            color: #cbd5e0;
-            font-style: italic;
-            line-height: 1.3;
-        }
-
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -389,28 +279,15 @@
         </div>
 
         <div class="feed-container">
-            <!-- Financial Juice Native Widget Section -->
+            <!-- News Feed Section -->
             <div class="feed-section active" id="newsFeed">
-                <div class="fj-native-container">
-                    <div class="fj-widget-wrapper">
-                        <!-- Financial Juice Widget Container -->
-                        <div id="fj-news-widget" class="fj-fallback">
-                            Loading Financial Juice news feed...
-                        </div>
-                    </div>
+                <div class="feed-content" id="newsContent">
+                    <div class="loading">Loading news...</div>
                 </div>
             </div>
 
-            <!-- Calendar Feed Section (RSS-based for validation) -->
+            <!-- Calendar Feed Section -->
             <div class="feed-section" id="calendarFeed">
-                <div id="pinnedEvent" class="pinned-item" style="display: none;">
-                    <div class="pinned-badge">RECENT</div>
-                    <div class="pinned-title"></div>
-                    <div class="pinned-meta">
-                        <span class="time-ago"></span>
-                        <span class="source">Forex Factory</span>
-                    </div>
-                </div>
                 <div class="feed-content" id="calendarContent">
                     <div class="loading">Loading calendar...</div>
                 </div>
@@ -418,39 +295,8 @@
         </div>
     </div>
 
-    <!-- Financial Juice Widget Script -->
     <script>
-        function loadFinancialJuiceWidget() {
-            const container = document.getElementById('fj-news-widget');
-            
-            // Replace the container with the FJ widget container
-            container.id = 'financialjuice-news-widget-container';
-            container.className = '';
-            container.innerHTML = '';
-            
-            // Create and load the Financial Juice widget script
-            var jo = document.createElement("script");
-            jo.type = "text/javascript";
-            jo.id = "FJ-Widgets";
-            var r = Math.floor(Math.random() * (9999 - 0 + 1) + 0);
-            jo.src = "https://feed.financialjuice.com/widgets/widgets.js?r=" + r + "";
-            jo.onload = function() { 
-                var options = {};
-                options.container = "financialjuice-news-widget-container";
-                options.mode = "Dark";
-                options.width = "268px";
-                options.height = "410px";
-                options.backColor = "{{ bg_color|replace('#', '') }}";
-                options.fontColor = "{{ font_color|replace('#', '') }}";
-                options.widgetType = "NEWS";
-                new window.FJWidgets.createWidget(options);
-            };
-            document.getElementsByTagName("head")[0].appendChild(jo);
-        }
-    </script>
-
-    <script>
-        class RotatingWidgetNative {
+        class RotatingWidget {
             constructor() {
                 this.currentFeed = 'news';
                 this.rotationInterval = {{ rotation_interval }};
@@ -464,11 +310,7 @@
             }
 
             initializeWidget() {
-                // Load Financial Juice native widget
-                loadFinancialJuiceWidget();
-                
-                // Load calendar data (still RSS-based for event validation)
-                this.loadCalendarData();
+                this.loadData();
                 
                 // Click handlers for manual rotation
                 document.querySelectorAll('.dot').forEach(dot => {
@@ -480,68 +322,79 @@
                 });
             }
 
-            async loadCalendarData() {
+            async loadData() {
                 try {
                     const response = await fetch('/api/combined/rotation-data?news_count={{ news_count }}&events_count={{ events_count }}');
                     const result = await response.json();
                     
                     if (result.success) {
+                        this.updateNewsSection(result.data.news_feed);
                         this.updateCalendarSection(result.data.calendar_feed);
                     } else {
-                        this.showCalendarError('Failed to load calendar data: ' + result.error);
+                        this.showError('Failed to load data: ' + result.error);
                     }
                 } catch (error) {
-                    console.error('Error loading calendar data:', error);
-                    this.showCalendarError('Network error loading calendar data');
+                    console.error('Error loading data:', error);
+                    this.showError('Network error loading data');
                 }
+            }
+
+            updateNewsSection(newsData) {
+                const newsContent = document.getElementById('newsContent');
+                
+                // Update news items
+                newsContent.innerHTML = '';
+                newsData.items.forEach(item => {
+                    const newsItem = this.createNewsItem(item);
+                    newsContent.appendChild(newsItem);
+                });
             }
 
             updateCalendarSection(calendarData) {
                 const calendarContent = document.getElementById('calendarContent');
-                const pinnedEvent = document.getElementById('pinnedEvent');
-                
-                // Update pinned event
-                if (calendarData.pinned) {
-                    this.updatePinnedItem(pinnedEvent, calendarData.pinned, 'event');
-                    pinnedEvent.style.display = 'block';
-                } else {
-                    pinnedEvent.style.display = 'none';
-                }
                 
                 // Update calendar events
                 calendarContent.innerHTML = '';
-                
-                if (calendarData.items && calendarData.items.length > 0) {
-                    // Show events if available
-                    calendarData.items.forEach(item => {
-                        const eventItem = this.createEventItem(item);
-                        calendarContent.appendChild(eventItem);
-                    });
-                } else {
-                    // Show fallback message when no high impact events
-                    const noEventsMessage = this.createNoEventsMessage();
-                    calendarContent.appendChild(noEventsMessage);
-                }
+                calendarData.items.forEach(item => {
+                    const eventItem = this.createEventItem(item);
+                    calendarContent.appendChild(eventItem);
+                });
             }
 
-            updatePinnedItem(element, data, type) {
-                const title = element.querySelector('.pinned-title');
-                const timeAgo = element.querySelector('.time-ago');
-                const source = element.querySelector('.source');
+            createNewsItem(item) {
+                const div = document.createElement('div');
+                div.className = `news-item ${item.is_high_impact ? 'high-impact' : ''}`;
                 
-                title.textContent = data.title;
-                timeAgo.textContent = data.time_until || data.time_ago || 'Recent';
-                
-                if (type === 'event') {
-                    source.textContent = 'Forex Factory';
-                    if (data.country) {
-                        const country = document.createElement('span');
-                        country.className = 'currency-flag';
-                        country.textContent = data.country;
-                        country.style.marginLeft = '8px';
-                        source.appendChild(country);
-                    }
+                if ({{ open_links_new_tab }}) {
+                    div.style.cursor = 'pointer';
+                    div.addEventListener('click', () => {
+                        window.open(item.link, '_blank');
+                    });
                 }
+                
+                let metaHtml = `
+                    <div class="item-title">${item.title}</div>
+                    <div class="item-meta">
+                        <span class="time-ago">${item.time_ago}</span>
+                        <span class="source">${item.source || 'Financial Juice'}</span>
+                        ${item.is_high_impact ? '<span class="impact-badge impact-high">HIGH</span>' : ''}
+                    </div>
+                `;
+                
+                // Add related event info if available
+                if (item.related_event) {
+                    metaHtml += `
+                        <div class="forecast-data">
+                            Related: ${item.related_event.title} (${item.related_event.country})
+                            ${item.related_event.forecast ? ` | Forecast: ${item.related_event.forecast}` : ''}
+                            ${item.related_event.previous ? ` | Previous: ${item.related_event.previous}` : ''}
+                        </div>
+                    `;
+                }
+                
+                div.innerHTML = metaHtml;
+                
+                return div;
             }
 
             createEventItem(item) {
@@ -573,23 +426,6 @@
                         ${item.status === 'completed' ? '<span class="status-badge">✓</span>' : ''}
                     </div>
                     ${forecastHtml}
-                `;
-                
-                return div;
-            }
-
-            createNoEventsMessage() {
-                const div = document.createElement('div');
-                div.className = 'no-events-message';
-                
-                div.innerHTML = `
-                    <div class="no-events-title">No High Impact Events Today</div>
-                    <div class="no-events-subtitle">
-                        There are no high impact economic events scheduled for today according to Forex Factory.
-                    </div>
-                    <div class="no-events-disclaimer">
-                        Be sure to check other news sources for events that might still trigger market volatility.
-                    </div>
                 `;
                 
                 return div;
@@ -636,8 +472,7 @@
 
             startDataRefresh() {
                 setInterval(() => {
-                    // Only refresh calendar data - FJ widget handles its own refresh
-                    this.loadCalendarData();
+                    this.loadData();
                 }, this.refreshInterval * 1000);
             }
 
@@ -645,19 +480,21 @@
                 this.countdownTimer = this.rotationInterval;
             }
 
-            showCalendarError(message) {
-                const calendarContent = document.getElementById('calendarContent');
+            showError(message) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
                 errorDiv.textContent = message;
-                calendarContent.innerHTML = '';
-                calendarContent.appendChild(errorDiv);
+                
+                document.querySelectorAll('.feed-content').forEach(content => {
+                    content.innerHTML = '';
+                    content.appendChild(errorDiv.cloneNode(true));
+                });
             }
         }
 
         // Initialize widget when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new RotatingWidgetNative();
+            new RotatingWidget();
         });
     </script>
 </body>

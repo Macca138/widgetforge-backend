@@ -4,9 +4,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timezone
 import feedparser
 import requests
-import email.utils
-from diskcache import Cache
-from ..services.cache_service import cache
+from .cache_service import cache
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +15,7 @@ class RSSService:
         self.financial_juice_url = "https://www.financialjuice.com/feed.ashx?xy=rss"
         self.cache_ttl = 300  # 5 minutes cache for frequent updates
         
-    def fetch_financial_juice_news(self, max_items: int = 20) -> List[Dict]:
+    def fetch_financial_juice_news(self, max_items: int = 50) -> List[Dict]:
         """
         Fetch Financial Juice news with caching
         
@@ -46,15 +44,21 @@ class RSSService:
             
             news_items = []
             for entry in feed.entries[:max_items]:
+                # Clean the title by removing "FinancialJuice:" prefix
+                title = entry.get('title', '')
+                if title.startswith('FinancialJuice:'):
+                    title = title.replace('FinancialJuice:', '').strip()
+                
                 news_item = {
-                    'title': entry.get('title', ''),
+                    'title': title,
                     'link': entry.get('link', ''),
                     'description': entry.get('description', ''),
                     'published': self._parse_date(entry.get('published', '')),
                     'published_raw': entry.get('published', ''),
                     'guid': entry.get('guid', ''),
-                    'author': entry.get('author', 'FinancialJuice'),
-                    'is_high_impact': self._is_high_impact_news(entry.get('title', '')),
+                    'author': 'Financial Juice',
+                    'source': 'Financial Juice',
+                    'is_high_impact': self._is_high_impact_news(title),
                     'time_ago': self._get_time_ago(entry.get('published', ''))
                 }
                 news_items.append(news_item)
@@ -79,9 +83,10 @@ class RSSService:
             
         try:
             # Parse RFC 2822 date format using email.utils
-            parsed_date = email.utils.parsedate_tz(date_str)
-            if parsed_date:
-                timestamp = email.utils.mktime_tz(parsed_date)
+            import email.utils
+            parsed_tuple = email.utils.parsedate_tz(date_str)
+            if parsed_tuple:
+                timestamp = email.utils.mktime_tz(parsed_tuple)
                 return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         except Exception as e:
             logger.warning(f"Could not parse date '{date_str}': {e}")
@@ -107,7 +112,7 @@ class RSSService:
         """Get human-readable time ago string"""
         parsed_date = self._parse_date(date_str)
         if not parsed_date:
-            return "Unknown"
+            return "Just now"
             
         now = datetime.now(timezone.utc)
         diff = now - parsed_date
@@ -122,81 +127,204 @@ class RSSService:
             return f"{minutes}m ago"
         else:
             return "Just now"
-
-    def cross_reference_with_calendar(self, news_items: List[Dict], calendar_events: List[Dict]) -> List[Dict]:
-        """Cross-reference news items with calendar events to find related events"""
-        enhanced_news = []
+    
+    def get_recent_high_impact_news(self) -> Optional[Dict]:
+        """
+        Get the most recent high-impact news item from today for pinned display
         
-        for news_item in news_items:
-            enhanced_item = news_item.copy()
-            news_title = news_item.get('title', '').lower()
+        Returns:
+            Most recent high-impact news item or None
+        """
+        cache_key = "recent_high_impact_news"
+        
+        # Try cache first (shorter TTL for pinned news)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
             
-            # Look for related economic events
-            for event in calendar_events:
-                event_title = event.get('title', '').lower()
-                event_country = event.get('country', '').lower()
+        try:
+            # Get all news items for today
+            news_items = self.fetch_financial_juice_news(max_items=50)
+            
+            today = datetime.now(timezone.utc).date()
+            recent_high_impact = None
+            latest_timestamp = 0
+            
+            for item in news_items:
+                # Check if item is high impact
+                if item.get('is_high_impact'):
+                    # Check if item is from today
+                    pub_date = self._parse_date(item.get('pub_date', ''))
+                    if pub_date and pub_date.date() == today:
+                        timestamp = int(pub_date.timestamp())
+                        if timestamp > latest_timestamp:
+                            latest_timestamp = timestamp
+                            recent_high_impact = item
+            
+            # Cache for 15 minutes
+            if recent_high_impact:
+                cache.set(cache_key, recent_high_impact, expire=900)
                 
-                # Check if news matches this event
-                if self._is_news_event_match(news_title, event_title, event_country):
-                    enhanced_item['related_event'] = {
-                        'title': event.get('title', ''),
-                        'country': event.get('country', ''),
-                        'forecast': event.get('forecast', ''),
-                        'previous': event.get('previous', ''),
-                        'impact': event.get('impact', '')
-                    }
-                    break
+            return recent_high_impact
             
-            enhanced_news.append(enhanced_item)
+        except Exception as e:
+            logger.error(f"Failed to get recent high-impact news: {e}")
+            return None
+    
+    def get_todays_high_impact_summary(self) -> Dict:
+        """
+        Get summary of today's high-impact news for dashboard display
         
-        return enhanced_news
+        Returns:
+            Summary with count and most recent high-impact item
+        """
+        cache_key = "todays_high_impact_summary"
+        
+        # Try cache first
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+            
+        try:
+            news_items = self.fetch_financial_juice_news(max_items=50)
+            
+            today = datetime.now(timezone.utc).date()
+            todays_high_impact = []
+            
+            for item in news_items:
+                if item.get('is_high_impact'):
+                    pub_date = self._parse_date(item.get('pub_date', ''))
+                    if pub_date and pub_date.date() == today:
+                        todays_high_impact.append(item)
+            
+            # Sort by publication date (most recent first)
+            todays_high_impact.sort(key=lambda x: self._parse_date(x.get('pub_date', '')) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+            
+            summary = {
+                'count': len(todays_high_impact),
+                'most_recent': todays_high_impact[0] if todays_high_impact else None,
+                'all_items': todays_high_impact[:5],  # Top 5 for display
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            # Cache for 10 minutes
+            cache.set(cache_key, summary, expire=600)
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Failed to get today's high-impact summary: {e}")
+            return {
+                'count': 0,
+                'most_recent': None,
+                'all_items': [],
+                'error': str(e)
+            }
+    
+    def cross_reference_with_calendar(self, news_items: List[Dict], calendar_events: List[Dict]) -> List[Dict]:
+        """
+        Cross-reference news items with calendar events to add actual results
+        
+        Args:
+            news_items: List of news items from RSS
+            calendar_events: List of calendar events from Forex Factory
+            
+        Returns:
+            Enhanced news items with calendar event data when matched
+        """
+        try:
+            enhanced_news = []
+            
+            for news_item in news_items:
+                enhanced_item = news_item.copy()
+                
+                # Try to match news with calendar events
+                news_title_lower = news_item['title'].lower()
+                
+                for event in calendar_events:
+                    event_title_lower = event.get('title', '').lower()
+                    event_country = event.get('country', '').lower()
+                    
+                    # Check for keyword matches between news and events
+                    if self._is_news_event_match(news_title_lower, event_title_lower, event_country):
+                        # Try to extract actual results from news title
+                        actual_result = self._extract_actual_from_news_title(news_item['title'])
+                        
+                        enhanced_item['related_event'] = {
+                            'title': event.get('title', ''),
+                            'country': event.get('country', ''),
+                            'impact': event.get('impact', ''),
+                            'forecast': event.get('forecast', ''),
+                            'previous': event.get('previous', ''),
+                            'time_until': event.get('time_until', ''),
+                            'actual': actual_result  # Add extracted actual result
+                        }
+                        # Mark as high impact if the related event is high impact
+                        if event.get('impact', '').lower() == 'high':
+                            enhanced_item['is_high_impact'] = True
+                        break
+                
+                enhanced_news.append(enhanced_item)
+            
+            return enhanced_news
+            
+        except Exception as e:
+            logger.error(f"Failed to cross-reference news with calendar: {e}")
+            return news_items
     
     def _is_news_event_match(self, news_title: str, event_title: str, event_country: str) -> bool:
-        """Check if news item matches an economic calendar event"""
-        # Currency/country mappings
-        currency_mappings = {
-            'usd': ['us', 'usa', 'united states', 'american', 'dollar'],
-            'eur': ['eu', 'euro', 'european', 'eurozone'],  
-            'gbp': ['uk', 'british', 'britain', 'england', 'pound'],
-            'jpy': ['japan', 'japanese', 'yen'],
-            'aud': ['australia', 'australian', 'aussie'],
-            'cad': ['canada', 'canadian', 'cad'],
-            'chf': ['swiss', 'switzerland', 'franc'],
-            'nzd': ['new zealand', 'nz', 'kiwi']
+        """
+        Determine if a news item matches a calendar event
+        
+        Args:
+            news_title: Lowercase news title
+            event_title: Lowercase event title
+            event_country: Lowercase country code
+            
+        Returns:
+            True if they likely refer to the same economic event
+        """
+        # Common economic indicators and their variations
+        economic_mappings = {
+            'unemployment': ['unemployment', 'jobless', 'employment', 'employment change', 'jobs'],
+            'inflation': ['inflation', 'cpi', 'consumer price', 'price index'],
+            'gdp': ['gdp', 'gross domestic product', 'economic growth'],
+            'interest rate': ['interest rate', 'rate decision', 'fed rate', 'federal rate', 'rate'],
+            'retail sales': ['retail sales', 'consumer spending'],
+            'manufacturing': ['manufacturing', 'factory', 'industrial', 'pmi'],
+            'employment': ['employment', 'jobs', 'payroll', 'nonfarm', 'employment change', 'jobless claims'],
+            'trade': ['trade', 'exports', 'imports', 'trade balance'],
+            'housing': ['housing', 'home sales', 'mortgage', 'building permits'],
+            'central bank': ['fed', 'ecb', 'boe', 'boj', 'central bank', 'fomc'],
+            'earnings': ['earnings', 'wages', 'income'],
+            'economic data': ['economic', 'data', 'statistics', 'report']
         }
         
-        # Check if news mentions the country/currency
-        country_mentioned = False
-        if event_country in currency_mappings:
-            country_terms = currency_mappings[event_country]
-            if any(term in news_title for term in country_terms):
-                country_mentioned = True
+        # Check for currency mentions
+        currency_codes = ['usd', 'eur', 'gbp', 'jpy', 'aud', 'cad', 'chf', 'nzd']
+        if event_country in currency_codes and event_country in news_title:
+            # Check if they share common economic terms
+            for category, terms in economic_mappings.items():
+                if any(term in event_title for term in terms) and any(term in news_title for term in terms):
+                    return True
         
-        if not country_mentioned:
-            return False
-        
-        # Economic indicator matching
-        specific_mappings = {
-            'employment change': ['employment change', 'jobs'],
-            'unemployment rate': ['unemployment rate'],
-            'gdp': ['gdp', 'gross domestic product'],
-            'inflation': ['inflation', 'cpi', 'consumer price'],
-            'interest rate': ['interest rate', 'rate decision'],
-            'retail sales': ['retail sales'],
-            'manufacturing': ['manufacturing', 'pmi'],
-            'trade balance': ['trade balance'],
-            'building permits': ['building permits'],
-            'housing': ['housing', 'home sales']
-        }
-        
-        # Check for indicator matches
-        for indicator, terms in specific_mappings.items():
-            if indicator in event_title:
-                if any(term in news_title for term in terms):
+        # Direct title matching (for exact or very similar titles)
+        if event_title and len(event_title) > 10:
+            # Remove common words and check similarity
+            event_words = set(event_title.split())
+            news_words = set(news_title.split())
+            common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
+            
+            event_words = event_words - common_words
+            news_words = news_words - common_words
+            
+            if len(event_words) > 2 and len(news_words) > 2:
+                overlap = len(event_words.intersection(news_words))
+                if overlap >= 2:  # At least 2 significant words match
                     return True
         
         return False
-
+    
     def _extract_actual_from_news_title(self, title: str) -> Optional[str]:
         """Extract actual result value from news title"""
         try:
@@ -222,19 +350,6 @@ class RSSService:
         except Exception as e:
             logger.warning(f"Failed to extract actual from title '{title}': {e}")
             return None
-
-    def get_recent_high_impact_news(self, max_items: int = 10) -> List[Dict]:
-        """Get recent high-impact news items specifically"""
-        all_news = self.fetch_financial_juice_news(max_items * 2)  # Fetch more to filter
-        
-        # Filter for high-impact news only
-        high_impact_news = [
-            news for news in all_news 
-            if news.get('is_high_impact', False)
-        ]
-        
-        # Return limited results
-        return high_impact_news[:max_items]
 
 # Global instance
 rss_service = RSSService()
