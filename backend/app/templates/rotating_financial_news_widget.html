@@ -18,9 +18,15 @@
             background: transparent;
             color: {{ font_color }};
             overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: optimizeLegibility;
+            /* EVMUX-specific blur fixes */
+            -webkit-font-smoothing: subpixel-antialiased;
+            -moz-osx-font-smoothing: auto;
+            text-rendering: geometricPrecision;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            zoom: 1;
+            transform: translateZ(0) scale(1);
         }
 
         .widget-container {
@@ -81,7 +87,7 @@
             overflow: hidden;
         }
 
-        .feed-section {
+        .page-section {
             position: absolute;
             top: 0;
             left: 0;
@@ -91,23 +97,54 @@
             visibility: hidden;
         }
         
-        /* News feed (FJ widget) - no transitions to prevent blur */
-        #newsFeed {
+        /* Page 0 (FJ widget) - no transitions to prevent blur */
+        #page-0 {
             transition: none !important;
         }
         
-        /* Calendar feed - smooth transitions */
-        #calendarFeed {
+        /* Calendar pages - smooth transitions */
+        .calendar-page {
             transition: opacity 0.6s ease-in-out, visibility 0.6s ease-in-out;
             transition-behavior: allow-discrete;
         }
+        
+        /* Warning page */
+        .warning-page {
+            transition: opacity 0.6s ease-in-out, visibility 0.6s ease-in-out;
+            background: {{ item_bg_color }};
+            border-radius: {{ border_radius }}px;
+            padding: {{ item_padding|int + 10 }}px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border: 2px solid {{ accent_color }}60;
+        }
+        
+        .warning-title {
+            font-size: {{ news_title_size|int + 6 }}px;
+            font-weight: 700;
+            color: {{ accent_color }};
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .warning-message {
+            font-size: {{ font_size|int + 2 }}px;
+            color: #ffffff;
+            line-height: 1.6;
+            max-width: 90%;
+            font-weight: 400;
+        }
 
-        .feed-section.active {
+        .page-section.active {
             opacity: 1 !important;
             visibility: visible !important;
         }
 
-        .feed-section.exit {
+        .page-section.exit {
             opacity: 0 !important;
             visibility: hidden !important;
         }
@@ -135,20 +172,29 @@
             backface-visibility: hidden;
         }
 
-        /* Override Financial Juice widget styles to match our theme */
+        /* Override Financial Juice widget styles - EVMUX optimized */
         .fj-widget-wrapper iframe,
         .fj-widget-wrapper > div {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
             border-radius: {{ border_radius }}px !important;
-            /* Remove all transform and transition properties that cause blur */
+            /* EVMUX-specific anti-blur properties */
             transform: none !important;
             transition: none !important;
             animation: none !important;
+            filter: none !important;
             -webkit-font-smoothing: subpixel-antialiased !important;
-            font-smoothing: auto !important;
-            text-rendering: auto !important;
+            -moz-osx-font-smoothing: auto !important;
+            font-smoothing: never !important;
+            text-rendering: geometricPrecision !important;
+            image-rendering: pixelated !important;
+            image-rendering: -moz-crisp-edges !important;
+            image-rendering: crisp-edges !important;
+            zoom: 1 !important;
+            -webkit-transform: translateZ(0) scale(1) !important;
+            -webkit-backface-visibility: visible !important;
+            backface-visibility: visible !important;
         }
 
         /* Fallback content for when FJ widget is loading */
@@ -297,12 +343,15 @@
         }
 
         .currency-flag {
-            font-size: {{ badge_font_size }}px;
+            font-size: {{ badge_font_size|int + 4 }}px;
             background: {{ accent_color }};
             color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .event-time {
@@ -312,10 +361,14 @@
         }
 
         .forecast-data {
-            font-size: {{ small_font_size|int + 1 }}px;
-            color: {{ secondary_color }};
-            margin-top: 4px;
-            line-height: 1.3;
+            font-size: {{ small_font_size|int + 2 }}px;
+            color: #ffffff;
+            margin-top: 6px;
+            line-height: 1.4;
+            font-weight: 500;
+            background: rgba(0,0,0,0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
         }
 
         .status-badge {
@@ -411,21 +464,19 @@
         <div class="widget-header">
             <div class="widget-title">{{ title }}</div>
             <div class="rotation-indicator">
-                <span class="feed-type-indicator" id="feedType">News</span>
-                <div class="rotation-dots">
-                    <div class="dot active" data-feed="news"></div>
-                    <div class="dot" data-feed="calendar"></div>
+                <span class="feed-type-indicator" id="pageType">Financial News</span>
+                <div class="rotation-dots" id="pageIndicators">
+                    <!-- Dots will be dynamically created based on total pages -->
                 </div>
                 <span class="countdown-timer" id="countdown">{{ rotation_interval }}s</span>
             </div>
         </div>
 
         <div class="feed-container">
-            <!-- Financial Juice Native Widget Section -->
-            <div class="feed-section active" id="newsFeed">
+            <!-- Page 1: Financial Juice News Widget -->
+            <div class="page-section active" id="page-0">
                 <div class="fj-native-container">
                     <div class="fj-widget-wrapper">
-                        <!-- Financial Juice Widget Container -->
                         <div id="fj-news-widget" class="fj-fallback">
                             Loading Financial Juice news feed...
                         </div>
@@ -433,20 +484,11 @@
                 </div>
             </div>
 
-            <!-- Calendar Feed Section (RSS-based for validation) -->
-            <div class="feed-section" id="calendarFeed">
-                <div id="pinnedEvent" class="pinned-item" style="display: none;">
-                    <div class="pinned-badge">RECENT</div>
-                    <div class="pinned-title"></div>
-                    <div class="pinned-meta">
-                        <span class="time-ago"></span>
-                        <span class="source">Forex Factory</span>
-                    </div>
-                </div>
-                <div class="feed-content" id="calendarContent">
-                    <div class="loading">Loading calendar...</div>
-                </div>
-            </div>
+            <!-- Dynamic calendar pages will be created here -->
+            <div id="calendar-pages-container"></div>
+            
+            <!-- Final warning page will be created here -->
+            <div id="warning-page-container"></div>
         </div>
     </div>
 
@@ -484,17 +526,18 @@
     <script>
         class RotatingWidgetNative {
             constructor() {
-                this.currentFeed = 'news';
-                this.rotationInterval = {{ rotation_interval }};
+                this.currentPage = 0;
+                this.totalPages = 1; // Start with just FJ page
+                this.pageInterval = {{ rotation_interval }}; // Time per page
                 this.refreshInterval = {{ refresh_interval }};
-                this.countdownTimer = this.rotationInterval;
+                this.countdownTimer = this.pageInterval;
                 this.isRotating = {{ auto_rotate }};
-                this.dynamicTiming = true; // Allow flexible timing based on content
-                this.calendarDataLoaded = false;
+                this.calendarEvents = [];
+                this.eventsPerPage = 4;
                 
                 this.initializeWidget();
                 this.startDataRefresh();
-                // Start rotation after a brief delay to allow calendar data to load
+                // Start rotation after calendar data loads
                 setTimeout(() => {
                     this.startRotation();
                 }, 2000);
@@ -504,17 +547,11 @@
                 // Load Financial Juice native widget
                 loadFinancialJuiceWidget();
                 
-                // Load calendar data (still RSS-based for event validation)
+                // Load calendar data
                 this.loadCalendarData();
                 
-                // Click handlers for manual rotation
-                document.querySelectorAll('.dot').forEach(dot => {
-                    dot.addEventListener('click', (e) => {
-                        const feed = e.target.dataset.feed;
-                        this.switchToFeed(feed);
-                        this.resetCountdown();
-                    });
-                });
+                // Create initial page indicators (will update when calendar loads)
+                this.updatePageIndicators();
             }
 
             async loadCalendarData() {
@@ -522,68 +559,94 @@
                     const response = await fetch('/api/combined/rotation-data?news_count={{ news_count }}&events_count={{ events_count }}');
                     const result = await response.json();
                     
-                    if (result.success) {
-                        this.updateCalendarSection(result.data.calendar_feed);
-                        this.calendarDataLoaded = true;
-                        console.log('Calendar data loaded successfully');
+                    if (result.success && result.data.calendar_feed.items) {
+                        this.calendarEvents = result.data.calendar_feed.items;
+                        console.log(`📊 Loaded ${this.calendarEvents.length} calendar events`);
+                        this.buildAllPages();
                     } else {
-                        this.showCalendarError('Failed to load calendar data: ' + result.error);
+                        console.log('⚠️ No calendar events available');
+                        this.buildAllPages(); // Build with just FJ + warning pages
                     }
                 } catch (error) {
                     console.error('Error loading calendar data:', error);
-                    this.showCalendarError('Network error loading calendar data');
+                    this.buildAllPages(); // Build minimal pages on error
                 }
             }
 
-            updateCalendarSection(calendarData) {
-                const calendarContent = document.getElementById('calendarContent');
-                const pinnedEvent = document.getElementById('pinnedEvent');
+            buildAllPages() {
+                // Calculate total pages: FJ + Calendar pages + Warning
+                const calendarPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
+                this.totalPages = 1 + calendarPages + 1; // FJ + Calendar + Warning
                 
-                // Update pinned event
-                if (calendarData.pinned) {
-                    this.updatePinnedItem(pinnedEvent, calendarData.pinned, 'event');
-                    pinnedEvent.style.display = 'block';
-                } else {
-                    pinnedEvent.style.display = 'none';
-                }
+                console.log(`📑 Building ${this.totalPages} pages: 1 FJ + ${calendarPages} calendar + 1 warning`);
                 
-                // Update calendar events
-                calendarContent.innerHTML = '';
+                // Build calendar pages
+                this.createCalendarPages();
                 
-                if (calendarData.items && calendarData.items.length > 0) {
-                    console.log(`📊 Loading ${calendarData.items.length} calendar events`);
-                    this.setupEventRotation(calendarData.items);
+                // Build warning page
+                this.createWarningPage();
+                
+                // Update page indicators
+                this.updatePageIndicators();
+            }
+
+            createCalendarPages() {
+                const container = document.getElementById('calendar-pages-container');
+                container.innerHTML = '';
+                
+                if (this.calendarEvents.length === 0) return;
+                
+                const calendarPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
+                
+                for (let pageNum = 0; pageNum < calendarPages; pageNum++) {
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'page-section calendar-page';
+                    pageDiv.id = `page-${pageNum + 1}`; // Pages 1, 2, 3... (FJ is page 0)
                     
-                    // If we're currently showing calendar, update the duration immediately
-                    if (this.currentFeed === 'calendar') {
-                        console.log('🔄 Calendar is active, updating duration for new event count');
-                        this.setCurrentFeedDuration();
-                    }
-                } else {
-                    console.log('⚠️ No calendar events found');
-                    const noEventsMessage = this.createNoEventsMessage();
-                    calendarContent.appendChild(noEventsMessage);
-                    this.calendarEvents = null;
+                    const startIndex = pageNum * this.eventsPerPage;
+                    const endIndex = Math.min(startIndex + this.eventsPerPage, this.calendarEvents.length);
+                    const pageEvents = this.calendarEvents.slice(startIndex, endIndex);
+                    
+                    pageEvents.forEach(event => {
+                        const eventElement = this.createEventItem(event);
+                        pageDiv.appendChild(eventElement);
+                    });
+                    
+                    container.appendChild(pageDiv);
                 }
+                
+                console.log(`📅 Created ${calendarPages} calendar pages`);
             }
-
-            updatePinnedItem(element, data, type) {
-                const title = element.querySelector('.pinned-title');
-                const timeAgo = element.querySelector('.time-ago');
-                const source = element.querySelector('.source');
+            
+            createWarningPage() {
+                const container = document.getElementById('warning-page-container');
+                container.innerHTML = '';
                 
-                title.textContent = data.title;
-                timeAgo.textContent = data.time_until || data.time_ago || 'Recent';
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page-section warning-page';
+                pageDiv.id = `page-${this.totalPages - 1}`; // Last page
                 
-                if (type === 'event') {
-                    source.textContent = 'Forex Factory';
-                    if (data.country) {
-                        const country = document.createElement('span');
-                        country.className = 'currency-flag';
-                        country.textContent = data.country;
-                        country.style.marginLeft = '8px';
-                        source.appendChild(country);
-                    }
+                pageDiv.innerHTML = `
+                    <div class="warning-title">⚠️ Market Alert</div>
+                    <div class="warning-message">
+                        Other economic events may trigger market volatility. 
+                        Always check multiple sources for additional news that could impact trading.
+                    </div>
+                `;
+                
+                container.appendChild(pageDiv);
+                console.log('⚠️ Created warning page');
+            }
+            
+            updatePageIndicators() {
+                const container = document.getElementById('pageIndicators');
+                container.innerHTML = '';
+                
+                for (let i = 0; i < this.totalPages; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = `dot ${i === 0 ? 'active' : ''}`;
+                    dot.dataset.page = i;
+                    container.appendChild(dot);
                 }
             }
 
@@ -591,20 +654,15 @@
                 const div = document.createElement('div');
                 div.className = 'event-item';
                 
+                // Enhanced forecast data with better visibility
                 let forecastHtml = '';
-                if (item.actual) {
-                    // Show actual results for completed events
-                    forecastHtml = `<div class="forecast-data">
-                        <strong>Actual: ${item.actual}</strong>
-                        ${item.forecast ? ` | Forecast: ${item.forecast}` : ''}
-                        ${item.previous ? ` | Previous: ${item.previous}` : ''}
-                    </div>`;
-                } else if (item.forecast || item.previous) {
-                    // Show forecast/previous for upcoming events
-                    forecastHtml = `<div class="forecast-data">
-                        ${item.forecast ? `Forecast: ${item.forecast}` : ''}
-                        ${item.previous ? ` | Previous: ${item.previous}` : ''}
-                    </div>`;
+                if (item.actual || item.forecast || item.previous) {
+                    const parts = [];
+                    if (item.actual) parts.push(`<strong>Actual: ${item.actual}</strong>`);
+                    if (item.forecast) parts.push(`Forecast: ${item.forecast}`);
+                    if (item.previous) parts.push(`Previous: ${item.previous}`);
+                    
+                    forecastHtml = `<div class="forecast-data">${parts.join(' | ')}</div>`;
                 }
                 
                 div.innerHTML = `
@@ -618,163 +676,73 @@
                     ${forecastHtml}
                 `;
                 
-                return div;
-            }
-
-            createNoEventsMessage() {
-                const div = document.createElement('div');
-                div.className = 'no-events-message';
-                
-                div.innerHTML = `
-                    <div class="no-events-title">No High Impact Events Today</div>
-                    <div class="no-events-subtitle">
-                        There are no high impact economic events scheduled for today according to Forex Factory.
-                    </div>
-                    <div class="no-events-disclaimer">
-                        Be sure to check other news sources for events that might still trigger market volatility.
-                    </div>
-                `;
-                
-                return div;
-            }
-
-            setupEventRotation(events) {
-                // Clear any existing event rotation timer
-                if (this.eventRotationTimer) {
-                    clearInterval(this.eventRotationTimer);
-                    this.eventRotationTimer = null;
-                }
-                
-                // Setup automatic event rotation for stream overlay
-                if (!events || events.length <= 4) {
-                    // If 4 or fewer events, show all at once
-                    this.showAllEvents(events);
-                    return;
-                }
-                
-                this.calendarEvents = events;
-                this.currentEventPage = 0;
-                this.eventsPerPage = 4;
-                
-                this.showEventPage(0);
-                this.startEventRotation();
-            }
-            
-            showEventPage(pageIndex) {
-                if (!this.calendarEvents || this.calendarEvents.length === 0) return;
-                
-                const calendarContent = document.getElementById('calendarContent');
-                const startIndex = pageIndex * this.eventsPerPage;
-                const endIndex = Math.min(startIndex + this.eventsPerPage, this.calendarEvents.length);
-                const pageEvents = this.calendarEvents.slice(startIndex, endIndex);
-                
-                // Clear and add page events with animation
-                calendarContent.innerHTML = '';
-                pageEvents.forEach((event, index) => {
-                    const eventItem = this.createEventItem(event);
-                    eventItem.style.opacity = '0.4';
-                    eventItem.style.transition = 'opacity 0.5s ease';
-                    calendarContent.appendChild(eventItem);
-                    
-                    // Stagger animations - fade in smoothly
-                    setTimeout(() => {
-                        eventItem.style.opacity = '1';
-                    }, index * 150);
-                });
-            }
-            
-            showAllEvents(events) {
-                // Show all events at once if 4 or fewer
-                const calendarContent = document.getElementById('calendarContent');
-                calendarContent.innerHTML = '';
-                
-                events.forEach((event, index) => {
-                    const eventItem = this.createEventItem(event);
-                    eventItem.style.opacity = '0.4';
-                    eventItem.style.transition = 'opacity 0.5s ease';
-                    calendarContent.appendChild(eventItem);
-                    
-                    // Stagger animations - fade in smoothly
-                    setTimeout(() => {
-                        eventItem.style.opacity = '1';
-                    }, index * 150);
-                });
-            }
-            
-            startEventRotation() {
-                if (!this.calendarEvents || this.calendarEvents.length <= this.eventsPerPage) return;
-                
-                // Calculate total pages and use dynamic timing
-                const totalPages = Math.ceil(this.calendarEvents.length / this.eventsPerPage);
-                const totalCalendarTime = this.calculateDynamicRotationTime();
-                
-                // Calculate optimal time per page based on total allocated calendar time
-                let timePerPage = Math.floor(totalCalendarTime / totalPages);
-                timePerPage = Math.max(4, Math.min(timePerPage, 8)); // Between 4-8 seconds per page
-                
-                console.log(`Event rotation: ${totalPages} pages, ${timePerPage}s per page, total calendar time: ${totalCalendarTime}s`);
-                
-                this.eventRotationTimer = setInterval(() => {
-                    this.currentEventPage = (this.currentEventPage + 1) % totalPages;
-                    this.showEventPage(this.currentEventPage);
-                }, timePerPage * 1000);
-            }
-
-            switchToFeed(feedType) {
-                if (feedType === this.currentFeed) return;
-                
-                console.log(`🔄 Switching from ${this.currentFeed} to ${feedType}`);
-                
-                // Clear event rotation timer when switching away from calendar
-                if (this.currentFeed === 'calendar' && this.eventRotationTimer) {
-                    clearInterval(this.eventRotationTimer);
-                    this.eventRotationTimer = null;
-                }
-                
-                // Update current feed FIRST
-                this.currentFeed = feedType;
-                
-                // Update visual indicators
-                document.querySelectorAll('.dot').forEach(dot => {
-                    dot.classList.toggle('active', dot.dataset.feed === feedType);
-                });
-                
-                document.getElementById('feedType').textContent = feedType === 'news' ? 'News' : 'Calendar';
-                
-                // Handle transitions differently for each feed
-                if (feedType === 'news') {
-                    this.switchToNews();
-                } else {
-                    this.switchToCalendar();
-                }
-                
-                // Set duration for this feed
-                this.setCurrentFeedDuration();
-            }
-            
-            switchToNews() {
-                // No transition for news (FJ widget) - instant switch
-                document.getElementById('calendarFeed').classList.remove('active');
-                document.getElementById('calendarFeed').classList.add('exit');
-                document.getElementById('newsFeed').classList.add('active');
-                
+                // Add animation on creation
+                div.style.opacity = '0.4';
+                div.style.transition = 'opacity 0.5s ease';
                 setTimeout(() => {
-                    document.getElementById('calendarFeed').classList.remove('exit');
+                    div.style.opacity = '1';
                 }, 100);
+                
+                return div;
+            }
+
+            startRotation() {
+                if (!this.isRotating) return;
+                
+                console.log(`🔄 Starting rotation: ${this.totalPages} pages, ${this.pageInterval}s each`);
+                
+                this.rotationTimer = setInterval(() => {
+                    this.countdownTimer--;
+                    document.getElementById('countdown').textContent = this.countdownTimer + 's';
+                    
+                    if (this.countdownTimer <= 0) {
+                        this.currentPage = (this.currentPage + 1) % this.totalPages;
+                        this.switchToPage(this.currentPage);
+                        this.countdownTimer = this.pageInterval;
+                    }
+                }, 1000);
             }
             
-            switchToCalendar() {
-                // Smooth transition for calendar only
-                document.getElementById('newsFeed').classList.remove('active');
-                document.getElementById('calendarFeed').classList.add('active');
+            switchToPage(pageNumber) {
+                console.log(`📄 Switching to page ${pageNumber}: ${this.getPageName(pageNumber)}`);
                 
-                // Start event rotation if needed
-                if (this.calendarEvents && this.calendarEvents.length > 4) {
-                    this.currentEventPage = 0;
-                    this.showEventPage(0);
-                    this.startEventRotation();
+                // Hide all pages
+                document.querySelectorAll('.page-section').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                // Show target page
+                const targetPage = document.getElementById(`page-${pageNumber}`);
+                if (targetPage) {
+                    targetPage.classList.add('active');
                 }
+                
+                // Update indicators
+                document.querySelectorAll('.dot').forEach((dot, index) => {
+                    dot.classList.toggle('active', index === pageNumber);
+                });
+                
+                // Update page type display
+                document.getElementById('pageType').textContent = this.getPageName(pageNumber);
             }
+            
+            getPageName(pageNumber) {
+                if (pageNumber === 0) return 'Financial News';
+                if (pageNumber === this.totalPages - 1) return 'Market Alert';
+                return `Economic Events ${pageNumber}`;
+            }
+
+            startDataRefresh() {
+                setInterval(() => {
+                    console.log('🔄 Refreshing calendar data...');
+                    this.loadCalendarData();
+                }, this.refreshInterval * 1000);
+            }
+            
+            
+            
+
+            
 
             startRotation() {
                 if (!this.isRotating) return;
@@ -794,22 +762,6 @@
                 }, 1000);
             }
             
-            calculateDynamicRotationTime() {
-                // Calculate how long to spend on calendar based on number of events
-                if (!this.calendarEvents || this.calendarEvents.length <= 4) {
-                    console.log(`📅 Few events (${this.calendarEvents?.length || 0}), using standard ${this.rotationInterval}s`);
-                    return this.rotationInterval; // Standard time for few events
-                }
-                
-                const totalPages = Math.ceil(this.calendarEvents.length / 4); // 4 events per page
-                const timePerPage = 8; // 8 seconds per page for good readability
-                const totalCalendarTime = totalPages * timePerPage;
-                const maxTime = 40; // Maximum 40 seconds on calendar
-                const finalTime = Math.min(totalCalendarTime, maxTime);
-                
-                console.log(`📅 Calendar timing: ${this.calendarEvents.length} events → ${totalPages} pages × ${timePerPage}s = ${finalTime}s`);
-                return finalTime;
-            }
 
             startDataRefresh() {
                 setInterval(() => {
@@ -818,27 +770,7 @@
                 }, this.refreshInterval * 1000);
             }
 
-            setCurrentFeedDuration() {
-                // Set duration based on what feed we're currently showing
-                if (this.currentFeed === 'calendar' && this.calendarEvents && this.calendarEvents.length > 0) {
-                    // We're on calendar - calculate dynamic time
-                    this.countdownTimer = this.calculateDynamicRotationTime();
-                    console.log(`📅 Calendar duration set: ${this.countdownTimer}s for ${this.calendarEvents.length} events`);
-                } else {
-                    // We're on news - use standard time
-                    this.countdownTimer = this.rotationInterval;
-                    console.log(`📰 News duration set: ${this.countdownTimer}s`);
-                }
-            }
 
-            showCalendarError(message) {
-                const calendarContent = document.getElementById('calendarContent');
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error';
-                errorDiv.textContent = message;
-                calendarContent.innerHTML = '';
-                calendarContent.appendChild(errorDiv);
-            }
         }
 
         // Initialize widget when page loads
