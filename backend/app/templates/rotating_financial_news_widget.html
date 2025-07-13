@@ -18,6 +18,11 @@
             background: transparent;
             color: {{ font_color }};
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-smooth: always;
+            -webkit-text-stroke: 0.01em transparent;
         }
 
         .widget-container {
@@ -87,16 +92,19 @@
             opacity: 0;
             transform: translateX(100%);
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform, opacity;
+            backface-visibility: hidden;
+            transform-style: preserve-3d;
         }
 
         .feed-section.active {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(0) translateZ(0);
         }
 
         .feed-section.exit {
             opacity: 0;
-            transform: translateX(-100%);
+            transform: translateX(-100%) translateZ(0);
         }
 
         /* Financial Juice Native Widget Container */
@@ -191,61 +199,9 @@
 
         .feed-content {
             height: calc(100% - 50px);
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             padding-bottom: 5px;
-            padding-right: 5px;
-        }
-
-        /* Custom scrollbar for better UX */
-        .feed-content::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .feed-content::-webkit-scrollbar-track {
-            background: {{ accent_color }}20;
-            border-radius: 2px;
-        }
-
-        .feed-content::-webkit-scrollbar-thumb {
-            background: {{ accent_color }}60;
-            border-radius: 2px;
-        }
-
-        .feed-content::-webkit-scrollbar-thumb:hover {
-            background: {{ accent_color }}80;
-        }
-
-        /* Scroll indicator for more events */
-        .scroll-indicator {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 20px;
-            background: linear-gradient(transparent, {{ bg_color }}90);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: {{ accent_color }};
-            font-size: {{ meta_font_size }}px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        .scroll-indicator.show {
-            opacity: 1;
-        }
-
-        .scroll-indicator::after {
-            content: "▼ More events below";
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
+            position: relative;
         }
 
         .event-item {
@@ -262,7 +218,7 @@
         .event-item:hover {
             background: {{ hover_color }};
             border-color: {{ accent_color }}60;
-            transform: translateY(-1px);
+            transform: translateY(-1px) translateZ(0);
         }
 
         .item-title {
@@ -271,6 +227,8 @@
             color: {{ news_title_color }};
             margin-bottom: 6px;
             line-height: 1.4;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .event-item.high-impact .item-title,
@@ -279,6 +237,9 @@
             font-weight: 600;
             color: #ffffff;
             line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-shadow: 0 0 1px rgba(0,0,0,0.3);
         }
 
         .item-meta {
@@ -469,7 +430,6 @@
                 <div class="feed-content" id="calendarContent">
                     <div class="loading">Loading calendar...</div>
                 </div>
-                <div class="scroll-indicator" id="scrollIndicator"></div>
             </div>
         </div>
     </div>
@@ -555,7 +515,6 @@
             updateCalendarSection(calendarData) {
                 const calendarContent = document.getElementById('calendarContent');
                 const pinnedEvent = document.getElementById('pinnedEvent');
-                const scrollIndicator = document.getElementById('scrollIndicator');
                 
                 // Update pinned event
                 if (calendarData.pinned) {
@@ -569,19 +528,12 @@
                 calendarContent.innerHTML = '';
                 
                 if (calendarData.items && calendarData.items.length > 0) {
-                    // Show events if available
-                    calendarData.items.forEach(item => {
-                        const eventItem = this.createEventItem(item);
-                        calendarContent.appendChild(eventItem);
-                    });
-                    
-                    // Setup scroll detection for overflow indicator
-                    this.setupScrollDetection(calendarContent, scrollIndicator);
+                    // Setup automatic event rotation for stream overlay
+                    this.setupEventRotation(calendarData.items);
                 } else {
                     // Show fallback message when no high impact events
                     const noEventsMessage = this.createNoEventsMessage();
                     calendarContent.appendChild(noEventsMessage);
-                    scrollIndicator.classList.remove('show');
                 }
             }
 
@@ -656,27 +608,54 @@
                 return div;
             }
 
-            setupScrollDetection(contentElement, indicatorElement) {
-                // Check if content overflows and setup scroll indicator
-                const checkScroll = () => {
-                    const hasOverflow = contentElement.scrollHeight > contentElement.clientHeight;
-                    const isScrolledToBottom = contentElement.scrollTop + contentElement.clientHeight >= contentElement.scrollHeight - 5;
+            setupEventRotation(events) {
+                // Setup automatic event rotation for stream overlay
+                if (!events || events.length <= 3) {
+                    // If 3 or fewer events, show all at once
+                    return;
+                }
+                
+                this.calendarEvents = events;
+                this.currentEventPage = 0;
+                this.eventsPerPage = 3;
+                this.eventRotationInterval = 5; // 5 seconds per page
+                
+                this.showEventPage(0);
+                this.startEventRotation();
+            }
+            
+            showEventPage(pageIndex) {
+                if (!this.calendarEvents || this.calendarEvents.length === 0) return;
+                
+                const calendarContent = document.getElementById('calendarContent');
+                const startIndex = pageIndex * this.eventsPerPage;
+                const endIndex = Math.min(startIndex + this.eventsPerPage, this.calendarEvents.length);
+                const pageEvents = this.calendarEvents.slice(startIndex, endIndex);
+                
+                // Clear and add page events with animation
+                calendarContent.innerHTML = '';
+                pageEvents.forEach((event, index) => {
+                    const eventItem = this.createEventItem(event);
+                    eventItem.style.opacity = '0';
+                    eventItem.style.transform = 'translateY(20px)';
+                    calendarContent.appendChild(eventItem);
                     
-                    if (hasOverflow && !isScrolledToBottom) {
-                        indicatorElement.classList.add('show');
-                    } else {
-                        indicatorElement.classList.remove('show');
-                    }
-                };
+                    // Stagger animations
+                    setTimeout(() => {
+                        eventItem.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                        eventItem.style.opacity = '1';
+                        eventItem.style.transform = 'translateY(0)';
+                    }, index * 100);
+                });
+            }
+            
+            startEventRotation() {
+                if (!this.calendarEvents || this.calendarEvents.length <= this.eventsPerPage) return;
                 
-                // Initial check
-                setTimeout(checkScroll, 100); // Delay to ensure content is rendered
-                
-                // Listen for scroll events
-                contentElement.addEventListener('scroll', checkScroll);
-                
-                // Listen for window resize
-                window.addEventListener('resize', checkScroll);
+                setInterval(() => {
+                    this.currentEventPage = (this.currentEventPage + 1) % Math.ceil(this.calendarEvents.length / this.eventsPerPage);
+                    this.showEventPage(this.currentEventPage);
+                }, this.eventRotationInterval * 1000);
             }
 
             switchToFeed(feedType) {
