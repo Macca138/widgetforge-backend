@@ -689,7 +689,7 @@
                 
                 if (flagMap[upperCountryCode]) {
                     // Use flagcdn.com flat flag images for better clarity at small size
-                    return `<img src="https://flagcdn.com/w24/${flagMap[upperCountryCode]}.png" alt="${upperCountryCode}" style="width: 24px; height: auto; border-radius: 2px; vertical-align: middle; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;" onerror="this.style.display='none'; this.nextSibling.style.display='inline';" /><span style="background: #666; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; display: none; font-family: 'Roboto', sans-serif;">${upperCountryCode}</span>`;
+                    return `<img src="https://flagcdn.com/w20/${flagMap[upperCountryCode]}.png" alt="${upperCountryCode}" style="width: 24px; height: auto; border-radius: 2px; vertical-align: middle; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;" onerror="this.style.display='none'; this.nextSibling.style.display='inline';" /><span style="background: #666; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; display: none; font-family: 'Roboto', sans-serif;">${upperCountryCode}</span>`;
                 } else {
                     // Fallback for currencies without flags
                     return `<span style="background: #666; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; font-family: 'Roboto', sans-serif;">${upperCountryCode}</span>`;
