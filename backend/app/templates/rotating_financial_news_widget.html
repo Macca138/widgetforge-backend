@@ -667,38 +667,41 @@
             }
 
             getCountryFlag(countryCode) {
-                // Since emoji flags aren't rendering properly, use styled currency codes with colors
-                const colorMap = {
-                    'USD': '#22c55e', // Green for USD
-                    'CAD': '#ef4444', // Red for CAD  
-                    'EUR': '#3b82f6', // Blue for EUR
-                    'GBP': '#8b5cf6', // Purple for GBP
-                    'JPY': '#f59e0b', // Orange for JPY
-                    'AUD': '#10b981', // Emerald for AUD
-                    'NZD': '#06b6d4', // Cyan for NZD
-                    'CHF': '#78716c', // Stone for CHF
-                    'CNY': '#dc2626', // Red for CNY
-                    'KRW': '#64748b', // Slate for KRW
-                    'SGD': '#059669', // Emerald for SGD
-                    'HKD': '#eab308', // Yellow for HKD
-                    'NOK': '#4f46e5', // Indigo for NOK
-                    'SEK': '#facc15', // Yellow for SEK
-                    'DKK': '#e11d48', // Rose for DKK
-                    'PLN': '#7c3aed', // Violet for PLN
-                    'CZK': '#1e40af', // Blue for CZK
-                    'HUF': '#b45309', // Amber for HUF
-                    'TRY': '#be123c', // Rose for TRY
-                    'ZAR': '#15803d', // Green for ZAR
-                    'BRL': '#16a34a', // Green for BRL
-                    'MXN': '#c2410c', // Orange for MXN
-                    'RUB': '#991b1b', // Red for RUB
-                    'INR': '#1d4ed8'  // Blue for INR
+                const upperCountryCode = countryCode ? countryCode.toUpperCase() : '';
+                
+                // Use HTML decimal entities for flag emojis - more reliable than Unicode
+                const flagMap = {
+                    'USD': '&#127482;&#127480;', // 🇺🇸
+                    'CAD': '&#127464;&#127462;', // 🇨🇦
+                    'EUR': '&#127466;&#127482;', // 🇪🇺
+                    'GBP': '&#127468;&#127463;', // 🇬🇧
+                    'JPY': '&#127471;&#127477;', // 🇯🇵
+                    'AUD': '&#127462;&#127482;', // 🇦🇺
+                    'NZD': '&#127475;&#127487;', // 🇳🇿
+                    'CHF': '&#127464;&#127469;', // 🇨🇭
+                    'CNY': '&#127464;&#127475;', // 🇨🇳
+                    'KRW': '&#127472;&#127479;', // 🇰🇷
+                    'SGD': '&#127480;&#127468;', // 🇸🇬
+                    'HKD': '&#127469;&#127472;', // 🇭🇰
+                    'NOK': '&#127475;&#127476;', // 🇳🇴
+                    'SEK': '&#127480;&#127466;', // 🇸🇪
+                    'DKK': '&#127465;&#127472;', // 🇩🇰
+                    'PLN': '&#127477;&#127473;', // 🇵🇱
+                    'CZK': '&#127464;&#127487;', // 🇨🇿
+                    'HUF': '&#127469;&#127482;', // 🇭🇺
+                    'TRY': '&#127481;&#127479;', // 🇹🇷
+                    'ZAR': '&#127487;&#127462;', // 🇿🇦
+                    'BRL': '&#127463;&#127479;', // 🇧🇷
+                    'MXN': '&#127474;&#127485;', // 🇲🇽
+                    'RUB': '&#127479;&#127482;', // 🇷🇺
+                    'INR': '&#127470;&#127475;'  // 🇮🇳
                 };
                 
-                const upperCountryCode = countryCode ? countryCode.toUpperCase() : '';
-                const color = colorMap[upperCountryCode] || '#6b7280';
-                
-                return `<span style="background: ${color}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${upperCountryCode}</span>`;
+                if (flagMap[upperCountryCode]) {
+                    return flagMap[upperCountryCode];
+                } else {
+                    return `<span style="background: #666; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px;">${upperCountryCode}</span>`;
+                }
             }
             
             createEventItem(item) {
