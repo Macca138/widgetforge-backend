@@ -722,7 +722,7 @@ async def rotating_financial_news_widget(request: Request):
     return templates.TemplateResponse("rotating_financial_news_widget.html", {
         "request": request,
         # Widget configuration
-        "title": params.get("title", "Market News and Economic Events"),
+        "title": params.get("title", "Market & Economic News"),
         "rotation_interval": int(params.get("rotation_interval", "10")),
         "refresh_interval": int(params.get("refresh_interval", "60")),
         "auto_rotate": params.get("auto_rotate", "true").lower(),
