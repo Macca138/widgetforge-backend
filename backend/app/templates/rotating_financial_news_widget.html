@@ -664,21 +664,48 @@
             }
 
             getCountryFlag(countryCode) {
-                // Use emoji flags directly - they're widely supported now
+                // Debug: log what we're receiving
+                console.log('getCountryFlag called with:', countryCode, typeof countryCode);
+                
+                // Test with a mix of approaches - Unicode and HTML entities
                 const flagMap = {
-                    'USD': '🇺🇸', 'CAD': '🇨🇦', 'EUR': '🇪🇺', 'GBP': '🇬🇧',
-                    'JPY': '🇯🇵', 'AUD': '🇦🇺', 'NZD': '🇳🇿', 'CHF': '🇨🇭',
-                    'CNY': '🇨🇳', 'KRW': '🇰🇷', 'SGD': '🇸🇬', 'HKD': '🇭🇰',
-                    'NOK': '🇳🇴', 'SEK': '🇸🇪', 'DKK': '🇩🇰', 'PLN': '🇵🇱',
-                    'CZK': '🇨🇿', 'HUF': '🇭🇺', 'TRY': '🇹🇷', 'ZAR': '🇿🇦',
-                    'BRL': '🇧🇷', 'MXN': '🇲🇽', 'RUB': '🇷🇺', 'INR': '🇮🇳'
+                    'USD': '\uD83C\uDDFA\uD83C\uDDF8', // 🇺🇸 as Unicode escapes
+                    'CAD': '\uD83C\uDDE8\uD83C\uDDE6', // 🇨🇦
+                    'EUR': '\uD83C\uDDEA\uD83C\uDDFA', // 🇪🇺  
+                    'GBP': '\uD83C\uDDEC\uD83C\uDDE7', // 🇬🇧
+                    'JPY': '\uD83C\uDDEF\uD83C\uDDF5', // 🇯🇵
+                    'AUD': '\uD83C\uDDE6\uD83C\uDDFA', // 🇦🇺
+                    'NZD': '\uD83C\uDDF3\uD83C\uDDFF', // 🇳🇿
+                    'CHF': '\uD83C\uDDE8\uD83C\uDDED', // 🇨🇭
+                    'CNY': '\uD83C\uDDE8\uD83C\uDDF3', // 🇨🇳
+                    'KRW': '\uD83C\uDDF0\uD83C\uDDF7', // 🇰🇷
+                    'SGD': '\uD83C\uDDF8\uD83C\uDDEC', // 🇸🇬
+                    'HKD': '\uD83C\uDDED\uD83C\uDDF0', // 🇭🇰
+                    'NOK': '\uD83C\uDDF3\uD83C\uDDF4', // 🇳🇴
+                    'SEK': '\uD83C\uDDF8\uD83C\uDDEA', // 🇸🇪
+                    'DKK': '\uD83C\uDDE9\uD83C\uDDF0', // 🇩🇰
+                    'PLN': '\uD83C\uDDF5\uD83C\uDDF1', // 🇵🇱
+                    'CZK': '\uD83C\uDDE8\uD83C\uDDFF', // 🇨🇿
+                    'HUF': '\uD83C\uDDED\uD83C\uDDFA', // 🇭🇺
+                    'TRY': '\uD83C\uDDF9\uD83C\uDDF7', // 🇹🇷
+                    'ZAR': '\uD83C\uDDFF\uD83C\uDDE6', // 🇿🇦
+                    'BRL': '\uD83C\uDDE7\uD83C\uDDF7', // 🇧🇷
+                    'MXN': '\uD83C\uDDF2\uD83C\uDDFD', // 🇲🇽
+                    'RUB': '\uD83C\uDDF7\uD83C\uDDFA', // 🇷🇺
+                    'INR': '\uD83C\uDDEE\uD83C\uDDF3'  // 🇮🇳
                 };
                 
-                if (flagMap[countryCode]) {
-                    return flagMap[countryCode];
+                // Ensure countryCode is uppercase
+                const upperCountryCode = countryCode ? countryCode.toUpperCase() : '';
+                console.log('Looking for flag:', upperCountryCode, 'Found:', flagMap[upperCountryCode]);
+                
+                if (flagMap[upperCountryCode]) {
+                    console.log('Returning emoji flag:', flagMap[upperCountryCode]);
+                    return flagMap[upperCountryCode];
                 } else {
+                    console.log('Using fallback for:', upperCountryCode);
                     // Fallback: styled currency code with black text on white background
-                    return `<span style="background: white; color: black; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; border: 1px solid #ccc;">${countryCode}</span>`;
+                    return `<span style="background: white; color: black; padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px; border: 1px solid #ccc;">${upperCountryCode}</span>`;
                 }
             }
             
