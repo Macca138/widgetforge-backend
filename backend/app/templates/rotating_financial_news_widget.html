@@ -669,7 +669,7 @@
             getCountryFlag(countryCode) {
                 const upperCountryCode = countryCode ? countryCode.toUpperCase() : '';
                 
-                // Use actual flag images for major currencies only
+                // Use actual flag images for major currencies and EU countries
                 const flagMap = {
                     'USD': 'us', // United States
                     'EUR': 'eu', // European Union
@@ -678,7 +678,13 @@
                     'CAD': 'ca', // Canada
                     'AUD': 'au', // Australia
                     'CHF': 'ch', // Switzerland
-                    'CNY': 'cn'  // China
+                    'CNY': 'cn', // China
+                    // Major EU countries that could have high-impact news
+                    'DE': 'de', // Germany (largest EU economy)
+                    'FR': 'fr', // France
+                    'IT': 'it', // Italy
+                    'ES': 'es', // Spain
+                    'NL': 'nl'  // Netherlands
                 };
                 
                 if (flagMap[upperCountryCode]) {
