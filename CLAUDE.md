@@ -68,3 +68,100 @@ python app/pollers/test_connection.py --terminal-id <ID> --login <LOGIN> --passw
 - Terminals must be pre-installed at specific locations (Account2-Account10)
 - Password encryption uses Fernet symmetric encryption
 - No automated tests or linting configuration currently exists
+
+## Current Development Context (2024)
+
+### System Redesign in Progress
+The system is being redesigned to replace MT5 account data collection with 5ers API integration for live streaming widgets. Key changes:
+
+1. **Authentication System Overhaul**: Moving from hardcoded admin login to proper user management with roles (trader/admin)
+2. **Account Data Migration**: Replacing MT5 terminal polling with 5ers API calls for account data
+3. **Architecture Simplification**: Removing multi-terminal complexity, keeping single terminal for price data only
+
+### Critical Reference Documents
+When working on this project, always reference these analysis documents:
+
+1. **`/AUTHENTICATION_SYSTEM_DESIGN.md`**: Complete design for new role-based authentication system
+   - User roles (trader/admin) and permissions
+   - Database schema with user names for widget display
+   - Authentication flow and security implementation
+   - Phase-by-phase implementation plan
+
+2. **`/MT5_COMPONENT_ANALYSIS.md`**: Analysis of MT5 components and their dependencies
+   - Two independent MT5 systems: price data vs account data
+   - Components safe to remove vs essential for price widgets
+   - Mini chart and price widget dependencies
+   - Cleanup safety checklist
+
+3. **`/MT5_API_Project_Outline.md`**: Project outline for 5ers API integration
+   - Technical requirements for 5ers API
+   - Security considerations and implementation approach
+   - Example API client code with safety measures
+
+### Current Architecture Understanding
+
+#### Two Independent MT5 Systems:
+1. **Price Data System** (KEEP):
+   - `pollers/poller_market.py` - Real-time price polling
+   - `pollers/chart_collector.py` - Historical data for mini charts
+   - `services/cache_service.py` - Price caching functions
+   - WebSocket `/ws/price-stream` - Real-time price updates
+   - Essential for mini charts, tickers, rotating charts
+
+2. **Account Data System** (REMOVE/REPLACE):
+   - `services/mt5_manager.py` - Legacy account manager
+   - `services/mt5_terminal_manager.py` - Production account manager
+   - `pollers/poller_accounts.py` - Account data polling
+   - `pollers/terminal_poller.py` - Terminal-specific polling
+   - Will be replaced with 5ers API calls
+
+#### Current Admin Interface Structure:
+- `admin_login.html` - Hardcoded login (to be replaced)
+- `admin_dashboard.html` - Main dashboard with iframe navigation
+- `admin_enhanced_account_builder.html` - Advanced account widget builder
+- `admin_mt5_terminal_manager.html` - Terminal management (to be removed)
+- `admin_ticker.html` - Market ticker builder
+
+### Development Phases
+
+#### Phase 1: Cleanup (Current)
+- Remove account-only MT5 components
+- Remove hardcoded authentication
+- Simplify codebase structure
+
+#### Phase 2: Authentication System
+- Implement user management database
+- Add role-based authentication (trader/admin)
+- Create user management interface
+
+#### Phase 3: Account Data Migration
+- Implement 5ers API integration
+- Create new account management interface
+- Build API-based account widgets
+
+#### Phase 4: Widget Updates
+- Update widget builders for new authentication
+- Implement account selection by trader names
+- Add real-time account data streaming
+
+### Security Considerations
+- Current hardcoded password: "Alpha5ersDeliciousPool!" (to be removed)
+- New system will use bcrypt password hashing
+- Fernet encryption for investor passwords
+- Role-based access control
+- Server-side session management
+
+### Key Insights for Future Development
+- Price data widgets are completely independent of account data
+- Mini charts use separate chart history database and market price poller
+- WebSocket price streaming works independently of account terminals
+- Widget builders need to display trader names instead of email addresses
+- Admin role inherits all trader functions (can add own accounts)
+
+### Testing Requirements
+After any changes, always test:
+- Mini chart widgets functionality
+- Price WebSocket streaming
+- Market ticker widgets
+- Rotating asset widgets
+- Chart history API endpoints
