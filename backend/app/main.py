@@ -7,9 +7,9 @@ from app.services.cache_service import get_price
 from app.services.rss_service import rss_service
 from app.services.forex_factory_service import forex_factory_service
 from app.routes.mt5_routes import router as mt5_router
+from app.routes.auth_routes import router as auth_router
+from app.middleware.auth_middleware import AuthMiddleware
 from dotenv import load_dotenv
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
 import asyncio
 from pathlib import Path
 import os
@@ -24,23 +24,12 @@ logger = logging.getLogger(__name__)
 
 load_dotenv("C:/WidgetForge/widgetforge-backend/.env")
 
-AUTH_TOKEN = os.getenv("API_KEY")
-print("🔑 AUTH_TOKEN loaded from .env:", AUTH_TOKEN)
-
-class AdminAuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        path = request.url.path
-        if path.startswith("/admin/") and path not in ["/admin/login", "/admin/dashboard"]:
-            key = request.headers.get("X-API-KEY") or request.query_params.get("key")
-            if key != AUTH_TOKEN:
-                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-        return await call_next(request)
-
 app = FastAPI()
-app.add_middleware(AdminAuthMiddleware)
+app.add_middleware(AuthMiddleware)
 
-# Include MT5 routes
+# Include routers
 app.include_router(mt5_router)
+app.include_router(auth_router)
 
 
 static_path = os.path.join(os.path.dirname(__file__), "static")

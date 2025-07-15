@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 diskcache
 pydantic
+email-validator
 MetaTrader5
 jinja2
 python-dotenv
