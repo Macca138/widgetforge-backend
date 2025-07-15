@@ -56,9 +56,7 @@
   <div class="sidebar">
     <h2>WidgetForge</h2>
     <button onclick="loadWidget('ticker')">📊 Market Ticker Builder</button>
-    <button onclick="loadWidget('account')">👥 Account Widget Builder</button>
     <button onclick="loadWidget('enhanced-account-builder')">🏆 Enhanced Account Builder</button>
-    <button onclick="loadWidget('mt5-terminal-manager')">⚙️ MT5 Terminal Manager</button>
   </div>
 
   <div class="main-content">
@@ -75,9 +73,7 @@
     function loadWidget(type) {
       const frame = document.getElementById("widgetFrame");
       if (type === 'ticker') frame.src = `/admin/ticker?key=${apiKey}`;
-      else if (type === 'account') frame.src = `/admin/account-widget?key=${apiKey}`;
       else if (type === 'enhanced-account-builder') frame.src = `/admin/enhanced-account-builder?key=${apiKey}`;
-      else if (type === 'mt5-terminal-manager') frame.src = `/admin/mt5-terminal-manager?key=${apiKey}`;
     }
 
     window.onload = () => {

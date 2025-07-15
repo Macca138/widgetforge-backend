@@ -13,12 +13,6 @@ def set_price(symbol: str, data: dict, expire: int = 10):
 def get_price(symbol: str):
     return cache.get(f"price:{symbol.upper()}")
 
-# 👤 TRADER ACCOUNT CACHE
-def set_account(account_id: str, data: dict, expire: int = 30):
-    cache.set(f"account:{account_id}", data, expire=expire)
-
-def get_account(account_id: str):
-    return cache.get(f"account:{account_id}")
 
 # 🧹 UTILS
 def clear_all_cache():
