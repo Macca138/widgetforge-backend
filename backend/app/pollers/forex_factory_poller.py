@@ -199,9 +199,11 @@ class ForexFactoryPoller:
     
     def should_update_weekly(self):
         """Check if we should do a weekly calendar structure update"""
-        # Always update on Sunday
+        # Update on Sunday, but only after 18:00 to allow Forex Factory to publish new data
         if self.is_sunday():
-            return True
+            current_hour = datetime.now().hour
+            if current_hour >= 18:  # Only update after 18:00 on Sunday
+                return True
         
         # Check if we've never done a weekly update
         if self.last_weekly_update is None:
@@ -214,6 +216,44 @@ class ForexFactoryPoller:
             
         return False
     
+    def validate_calendar_data(self, calendar_data):
+        """Validate that calendar data contains current week's events"""
+        try:
+            if not calendar_data:
+                logger.warning("Calendar data is empty")
+                return False
+                
+            # Check if we have events for the current week
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            week_start = now - timedelta(days=now.weekday())  # Monday of current week
+            week_end = week_start + timedelta(days=6)  # Sunday of current week
+            
+            current_week_events = 0
+            for event in calendar_data:
+                event_date_str = event.get('date', '')
+                if event_date_str:
+                    try:
+                        # Parse the date (adjust format as needed)
+                        event_date = datetime.fromisoformat(event_date_str.replace('Z', '+00:00'))
+                        if week_start <= event_date.replace(tzinfo=None) <= week_end:
+                            current_week_events += 1
+                    except:
+                        continue
+            
+            logger.info(f"Found {current_week_events} events for current week")
+            
+            # We expect at least some events for the current week
+            if current_week_events < 5:  # Minimum threshold
+                logger.warning(f"Only {current_week_events} events found for current week, data might be stale")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error validating calendar data: {e}")
+            return False
+
     def update_calendar_structure(self):
         """Weekly update - Download new calendar structure from Forex Factory"""
         try:
@@ -224,6 +264,11 @@ class ForexFactoryPoller:
             
             # Download new data
             calendar_data = self.download_calendar_data()
+            
+            # Validate the data is current
+            if not self.validate_calendar_data(calendar_data):
+                logger.warning("Calendar data validation failed, may be stale data")
+                # Continue anyway but log the warning
             
             # Save new data
             self.save_calendar_data(calendar_data)
