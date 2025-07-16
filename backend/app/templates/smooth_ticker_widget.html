@@ -205,6 +205,7 @@
 
       updateData(newData) {
         let hasChanges = false;
+        const wasEmpty = this.data.size === 0;
         
         newData.forEach(item => {
           if (config.symbols.length === 0 || config.symbols.includes(item.symbol)) {
@@ -219,7 +220,8 @@
           }
         });
 
-        if (hasChanges) {
+        // Always update if we just populated an empty ticker or if there were changes
+        if (hasChanges || wasEmpty) {
           this.updateContent();
         }
       }
@@ -237,6 +239,7 @@
           });
           this.updateContent();
         }
+        // If no symbols specified, content will be populated when first data arrives
       }
 
       updateContent() {
