@@ -172,21 +172,26 @@ class ForexFactoryService:
         for event in events:
             enhanced_event = event.copy()
             
-            # Look for matching news in RSS feed
-            for news_item in rss_news:
-                news_title = news_item.get('title', '').lower()
-                event_title = event.get('title', '').lower()
-                event_country = event.get('country', '').lower()
-                
-                # Check if this news item matches this economic event (more specific matching)
-                if self._is_specific_news_event_match(news_title, event_title, event_country):
-                    # Extract actual result from news title
-                    actual_result = self._extract_actual_from_news_title(news_item.get('title', ''))
-                    if actual_result:
-                        enhanced_event['actual'] = actual_result
-                        enhanced_event['actual_source'] = 'RSS'
-                        enhanced_event['matched_news'] = news_item.get('title', '')  # For debugging
-                        break
+            # Only look for RSS results if we don't already have an actual value
+            if not enhanced_event.get('actual', '').strip():
+                # Look for matching news in RSS feed
+                for news_item in rss_news:
+                    news_title = news_item.get('title', '').lower()
+                    event_title = event.get('title', '').lower()
+                    event_country = event.get('country', '').lower()
+                    
+                    # Check if this news item matches this economic event (more specific matching)
+                    if self._is_specific_news_event_match(news_title, event_title, event_country):
+                        # Extract actual result from news title
+                        actual_result = self._extract_actual_from_news_title(news_item.get('title', ''))
+                        if actual_result:
+                            enhanced_event['actual'] = actual_result
+                            enhanced_event['actual_source'] = 'RSS'
+                            enhanced_event['matched_news'] = news_item.get('title', '')  # For debugging
+                            break
+            else:
+                # Mark that we already had the actual value from the original data
+                enhanced_event['actual_source'] = 'Calendar'
             
             enhanced_events.append(enhanced_event)
         
@@ -270,20 +275,21 @@ class ForexFactoryService:
             'nzd': ['new zealand', 'nz', 'kiwi']
         }
         
-        # Check if news mentions the country/currency
+        # Check if news mentions the country/currency (more flexible matching)
         country_mentioned = False
         if event_country in currency_mappings:
             country_terms = currency_mappings[event_country]
             if any(term in news_title for term in country_terms):
                 country_mentioned = True
         
-        if not country_mentioned:
-            return False
+        # Also check if the currency code itself is in the title
+        if event_country.upper() in news_title.upper():
+            country_mentioned = True
         
-        # More specific economic indicator matching
+        # More specific economic indicator matching with enhanced patterns
         specific_mappings = {
-            'employment change': ['employment change', 'nonfarm', 'non-farm', 'payroll'],
-            'unemployment rate': ['unemployment rate', 'jobless rate'],
+            'employment change': ['employment change', 'nonfarm', 'non-farm', 'payroll', 'employment', 'jobs'],
+            'unemployment rate': ['unemployment rate', 'jobless rate', 'unemployment'],
             'gdp': ['gdp', 'gross domestic product', 'economic growth'],
             'inflation': ['inflation', 'cpi', 'consumer price', 'ppi', 'producer price', 'core cpi', 'core inflation'],
             'interest rate': ['interest rate', 'rate decision', 'fomc', 'fed rate'],
@@ -295,7 +301,9 @@ class ForexFactoryService:
             'jobless claims': ['jobless claims', 'initial claims', 'weekly claims'],
             'consumer confidence': ['consumer confidence', 'consumer sentiment'],
             'durable goods': ['durable goods', 'durable goods orders'],
-            'services pmi': ['services pmi', 'ism services']
+            'services pmi': ['services pmi', 'ism services'],
+            'producer price': ['producer price', 'ppi', 'producer prices'],
+            'consumer price': ['consumer price', 'cpi', 'consumer prices']
         }
         
         # Check for exact or very close indicator matches
@@ -303,7 +311,12 @@ class ForexFactoryService:
             if indicator in event_title:
                 # Require the specific term to be in news title too
                 if any(term in news_title for term in terms):
-                    return True
+                    # If we have both country and indicator match, that's good enough
+                    if country_mentioned:
+                        return True
+                    # Even without explicit country mention, if the indicator is very specific, allow it
+                    if indicator in ['producer price', 'consumer price', 'employment change', 'unemployment rate']:
+                        return True
         
         return False
     
@@ -312,10 +325,28 @@ class ForexFactoryService:
         try:
             import re
             
-            # Look for patterns like "Actual 83.1k", "Actual: 83.1k", "Actual 2.5%"
+            # Enhanced patterns to extract actual values from various news title formats
             actual_patterns = [
-                r'actual[:\s]+([^\s\(]+)',  # "Actual 83.1k" or "Actual: 83.1k"
-                r'actual[:\s]+([^,\(]+)',   # "Actual 83.1k (Forecast..."
+                # Pattern: "Actual 83.1k" or "Actual: 83.1k"
+                r'actual[:\s]+([^\s\(,]+)',
+                # Pattern: "2.1% vs 2.0% Expected" or "2.1% vs 2.0% Forecast"
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s+vs\s+[+-]?\d+\.?\d*%?[kmb]?\s+(?:expected|forecast|est)',
+                # Pattern: "GDP 2.1% (Forecast 2.0%)" or "GDP 2.1% (Est 2.0%)"
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s*\((?:forecast|est|expected)[:\s]*[+-]?\d+\.?\d*%?[kmb]?\)',
+                # Pattern: "US GDP Growth Rate 2.1%" - extract number before common words
+                r'(?:rate|index|sales|change|growth|price|pmi|gdp|cpi|ppi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Employment Change 85.2k" - number after indicator
+                r'(?:employment|unemployment|retail|manufacturing|trade|building|housing|jobless|consumer|durable|services)[:\s]+(?:change|rate|sales|permits|claims|confidence|goods|pmi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "PPI 0.4%" - simple indicator followed by value
+                r'(?:ppi|cpi|gdp|pmi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: general number before vs/forecast
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s+(?:vs|v)\s+[+-]?\d+\.?\d*%?[kmb]?',
+                # Pattern: "Result: 2.1%" or "Result 2.1%"
+                r'result[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Comes in at 2.1%" 
+                r'comes?\s+in\s+at\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Reported 2.1%" or "Reports 2.1%"
+                r'reports?\s+([+-]?\d+\.?\d*%?[kmb]?)',
             ]
             
             title_lower = title.lower()
@@ -325,7 +356,9 @@ class ForexFactoryService:
                     actual_value = match.group(1).strip()
                     # Clean up common trailing characters
                     actual_value = actual_value.rstrip('.,;')
-                    return actual_value
+                    # Ensure it's a valid number format
+                    if re.match(r'^[+-]?\d+\.?\d*%?[kmb]?$', actual_value):
+                        return actual_value
             
             return None
             

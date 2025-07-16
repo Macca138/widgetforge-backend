@@ -8,7 +8,10 @@ from app.services.rss_service import rss_service
 from app.services.forex_factory_service import forex_factory_service
 from app.routes.mt5_routes import router as mt5_router
 from app.routes.auth_routes import router as auth_router
+from app.routes.account_routes import router as account_router
+from app.routes.widget_routes import router as widget_router
 from app.middleware.auth_middleware import AuthMiddleware
+from app.services.fivers_api_client import initialize_api_client
 from dotenv import load_dotenv
 import asyncio
 from pathlib import Path
@@ -27,9 +30,20 @@ load_dotenv("C:/WidgetForge/widgetforge-backend/.env")
 app = FastAPI()
 app.add_middleware(AuthMiddleware)
 
+# Initialize 5ers API client if configured
+fivers_api_key = os.getenv("FIVERS_API_KEY")
+if fivers_api_key:
+    fivers_api_url = os.getenv("FIVERS_API_URL", "https://api.the5ers.com/mt5/investor")
+    initialize_api_client(fivers_api_key, fivers_api_url)
+    logger.info("5ers API client initialized")
+else:
+    logger.info("5ers API client not configured (FIVERS_API_KEY not set)")
+
 # Include routers
 app.include_router(mt5_router)
 app.include_router(auth_router)
+app.include_router(account_router)
+app.include_router(widget_router)
 
 
 static_path = os.path.join(os.path.dirname(__file__), "static")
@@ -463,6 +477,12 @@ async def admin_enhanced_account_builder(request: Request):
         "request": request
     })
 
+@app.get("/admin/account-manager", response_class=HTMLResponse)
+async def admin_account_manager(request: Request):
+    return templates.TemplateResponse("admin_account_manager.html", {
+        "request": request
+    })
+
 @app.get("/admin/mini-chart-builder", response_class=HTMLResponse)
 async def admin_mini_chart_builder(request: Request):
     return templates.TemplateResponse("admin_mini_chart.html", {
@@ -617,8 +637,15 @@ async def get_rotation_data(news_count: int = 8, events_count: int = 8):
         enhanced_past_events = forex_factory_service.enhance_events_with_rss_results(recent_past_events, all_news_items)
         enhanced_upcoming_events = forex_factory_service.enhance_events_with_rss_results(upcoming_events, all_news_items)
         
-        # Combine and limit to events_count total (only FF high-impact)
-        calendar_display_events = (enhanced_past_events + enhanced_upcoming_events)[:events_count]
+        # Combine events with priority for upcoming events (ensure USD PPI and other future events show)
+        # Prioritize upcoming events, then fill remaining slots with past events
+        max_upcoming = max(6, events_count // 2)  # Ensure at least 6 upcoming events or half the total
+        max_past = events_count - len(enhanced_upcoming_events[:max_upcoming])
+        
+        calendar_display_events = enhanced_upcoming_events[:max_upcoming] + enhanced_past_events[:max_past]
+        
+        # Sort combined events by timestamp for proper chronological order
+        calendar_display_events.sort(key=lambda x: x.get('timestamp', 0))
         all_events = forex_factory_service.get_todays_events() + upcoming_events
         
         # Cross-reference news with calendar events (but keep chronological order)
