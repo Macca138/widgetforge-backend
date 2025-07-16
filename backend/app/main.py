@@ -8,10 +8,10 @@ from app.services.rss_service import rss_service
 from app.services.forex_factory_service import forex_factory_service
 from app.routes.mt5_routes import router as mt5_router
 from app.routes.auth_routes import router as auth_router
-from app.routes.account_routes import router as account_router
-from app.routes.widget_routes import router as widget_router
+# from app.routes.account_routes import router as account_router
+# from app.routes.widget_routes import router as widget_router
 from app.middleware.auth_middleware import AuthMiddleware
-from app.services.fivers_api_client import initialize_api_client
+# from app.services.fivers_api_client import initialize_api_client
 from dotenv import load_dotenv
 import asyncio
 from pathlib import Path
@@ -31,19 +31,19 @@ app = FastAPI()
 app.add_middleware(AuthMiddleware)
 
 # Initialize 5ers API client if configured
-fivers_api_key = os.getenv("FIVERS_API_KEY")
-if fivers_api_key:
-    fivers_api_url = os.getenv("FIVERS_API_URL", "https://api.the5ers.com/mt5/investor")
-    initialize_api_client(fivers_api_key, fivers_api_url)
-    logger.info("5ers API client initialized")
-else:
-    logger.info("5ers API client not configured (FIVERS_API_KEY not set)")
+# fivers_api_key = os.getenv("FIVERS_API_KEY")
+# if fivers_api_key:
+#     fivers_api_url = os.getenv("FIVERS_API_URL", "https://api.the5ers.com/mt5/investor")
+#     initialize_api_client(fivers_api_key, fivers_api_url)
+#     logger.info("5ers API client initialized")
+# else:
+#     logger.info("5ers API client not configured (FIVERS_API_KEY not set)")
 
 # Include routers
 app.include_router(mt5_router)
 app.include_router(auth_router)
-app.include_router(account_router)
-app.include_router(widget_router)
+# app.include_router(account_router)
+# app.include_router(widget_router)
 
 
 static_path = os.path.join(os.path.dirname(__file__), "static")
@@ -89,7 +89,7 @@ def get_price_data(symbol: str):
 @app.websocket("/ws/price-stream")
 async def price_stream(websocket: WebSocket):
     await websocket.accept()
-    print("📡 Client connected to /ws/price-stream")
+    print("[WS] Client connected to /ws/price-stream")
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     symbols_file = os.path.join(base_dir, "pollers", "symbols.txt")
@@ -99,7 +99,7 @@ async def price_stream(websocket: WebSocket):
             symbols = [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         await websocket.close()
-        print("❌ symbols.txt not found")
+        print("[ERROR] symbols.txt not found")
         return
 
     try:
@@ -117,7 +117,7 @@ async def price_stream(websocket: WebSocket):
             await websocket.send_json(payload)
             await asyncio.sleep(1)
     except WebSocketDisconnect:
-        print("❌ Client disconnected from /ws/price-stream")
+        print("[WS] Client disconnected from /ws/price-stream")
 
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login(request: Request):
