@@ -85,7 +85,6 @@ def get_price_data(symbol: str):
         return {"error": "Not found"}
     return data
 
-
 @app.websocket("/ws/price-stream")
 async def price_stream(websocket: WebSocket):
     await websocket.accept()
@@ -97,14 +96,14 @@ async def price_stream(websocket: WebSocket):
     try:
         with open(symbols_file, 'r') as f:
             symbols = [line.strip() for line in f if line.strip()]
-        print(f"✅ Loaded {len(symbols)} symbols from symbols.txt")
+        print(f"[INFO] Loaded {len(symbols)} symbols from symbols.txt")
     except FileNotFoundError:
         await websocket.close()
         print("[ERROR] symbols.txt not found")
         return
     except Exception as e:
         await websocket.close()
-        print(f"❌ Error reading symbols.txt: {e}")
+        print(f"[ERROR] Error reading symbols.txt: {e}")
         return
 
     try:
@@ -112,44 +111,27 @@ async def price_stream(websocket: WebSocket):
             payload = []
             for symbol in symbols:
                 try:
-                    try:
-                      data = get_price(symbol)
-                      if data:
-                          payload.append({
-                              "symbol": symbol,
-                              "price": data.get("price"),
-                              "change_pct": data.get("change_pct"),
-                              "spread": data.get("spread")
-                          })
-                      else:
-                          print(f"[WARN] No price data available for: {symbol}")
-                  except Exception as e:
-                      print(f"[ERROR] Error retrieving data for {symbol}: {e}")
+                    data = get_price(symbol)
+                    if data:
+                        payload.append({
+                            "symbol": symbol,
+                            "price": data.get("price"),
+                            "change_pct": data.get("change_pct"),
+                            "spread": data.get("spread")
+                        })
+                    else:
+                        print(f"[WARN] No price data available for: {symbol}")
+                except Exception as e:
+                    print(f"[ERROR] Error retrieving data for {symbol}: {e}")
 
-                # Fallback dummy payload to avoid frontend disconnect
-                if not payload:
-                    payload = [{"symbol": "N/A", "price": None, "change_pct": None, "spread": None}]
-                    
-            # Send payload and sleep
-            try:
-                await websocket.send_json(payload)
-                print(f"Sent payload with {len(payload)} entries")
-            except Exception as e:
-                print(f"Failed to send payload: {e}")
-                break
+            # Fallback dummy payload to avoid frontend disconnect
+            if not payload:
+                payload = [{"symbol": "N/A", "price": None, "change_pct": None, "spread": None}]
 
+            await websocket.send_json(payload)
             await asyncio.sleep(1)
-
-            except WebSocketDisconnect:
-        print(f"[INFO] Loaded {len(symbols)} symbols from symbols.txt")
-            except FileNotFoundError:
-            await websocket.close()
-        print("[ERROR] symbols.txt not found")
-            return
-            except Exception as e:
-            await websocket.close()
-        print(f"[ERROR] Error reading symbols.txt: {e}")
-            return
+    except WebSocketDisconnect:
+        print("[WS] Client disconnected from /ws/price-stream")
     
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login(request: Request):

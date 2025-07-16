@@ -704,9 +704,9 @@
                 let forecastHtml = '';
                 if (item.actual || item.forecast || item.previous) {
                     const parts = [];
-                    if (item.actual) parts.push(`<strong>Actual: ${item.actual}</strong>`);
-                    if (item.forecast) parts.push(`Forecast: ${item.forecast}`);
-                    if (item.previous) parts.push(`Previous: ${item.previous}`);
+                    if (item.actual) parts.push(`<strong>Act: ${item.actual}</strong>`);
+                    if (item.forecast) parts.push(`Fct: ${item.forecast}`);
+                    if (item.previous) parts.push(`Prev: ${item.previous}`);
                     
                     forecastHtml = `<div class="forecast-data">${parts.join(' | ')}</div>`;
                 }
