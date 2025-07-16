@@ -56,9 +56,10 @@
   <div class="sidebar">
     <h2>WidgetForge</h2>
     <button onclick="loadWidget('ticker')">📊 Market Ticker Builder</button>
-    <button onclick="loadWidget('account')">👥 Account Widget Builder</button>
     <button onclick="loadWidget('enhanced-account-builder')">🏆 Enhanced Account Builder</button>
-    <button onclick="loadWidget('mt5-terminal-manager')">⚙️ MT5 Terminal Manager</button>
+    <div style="margin-top: auto; padding-top: 2rem;">
+      <button onclick="logout()" style="background: #dc2626; color: white;">🚪 Logout</button>
+    </div>
   </div>
 
   <div class="main-content">
@@ -66,22 +67,51 @@
   </div>
 
   <script>
-    const apiKey = sessionStorage.getItem("WIDGETFORGE_KEY");
+    let currentUser = null;
 
-    if (!apiKey) {
-      window.location.href = "/admin/login";
+    // Check authentication and load user info
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/current-user');
+        if (response.ok) {
+          currentUser = await response.json();
+          updateUserInterface();
+        } else {
+          window.location.href = '/admin/login';
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        window.location.href = '/admin/login';
+      }
+    }
+
+    function updateUserInterface() {
+      // Update sidebar with user info
+      const sidebar = document.querySelector('.sidebar h2');
+      if (currentUser) {
+        sidebar.textContent = `Welcome, ${currentUser.name}`;
+      }
     }
 
     function loadWidget(type) {
       const frame = document.getElementById("widgetFrame");
-      if (type === 'ticker') frame.src = `/admin/ticker?key=${apiKey}`;
-      else if (type === 'account') frame.src = `/admin/account-widget?key=${apiKey}`;
-      else if (type === 'enhanced-account-builder') frame.src = `/admin/enhanced-account-builder?key=${apiKey}`;
-      else if (type === 'mt5-terminal-manager') frame.src = `/admin/mt5-terminal-manager?key=${apiKey}`;
+      if (type === 'ticker') frame.src = `/admin/ticker`;
+      else if (type === 'enhanced-account-builder') frame.src = `/admin/enhanced-account-builder`;
     }
 
-    window.onload = () => {
-      console.log("KEY in session:", apiKey);
+    // Logout function
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/admin/login';
+      } catch (error) {
+        console.error('Logout failed:', error);
+        window.location.href = '/admin/login';
+      }
+    }
+
+    window.onload = async () => {
+      await checkAuth();
       loadWidget('ticker');
     };
   </script>

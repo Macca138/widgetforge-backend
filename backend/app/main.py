@@ -3,14 +3,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from app.services.cache_service import get_price, get_account
+from app.services.cache_service import get_price
 from app.services.rss_service import rss_service
 from app.services.forex_factory_service import forex_factory_service
 from app.routes.mt5_routes import router as mt5_router
-from app.routes.mt5_terminal_routes import router as mt5_terminal_router
+from app.routes.auth_routes import router as auth_router
+# from app.routes.account_routes import router as account_router
+# from app.routes.widget_routes import router as widget_router
+from app.middleware.auth_middleware import AuthMiddleware
+# from app.services.fivers_api_client import initialize_api_client
 from dotenv import load_dotenv
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
 import asyncio
 from pathlib import Path
 import os
@@ -25,58 +27,24 @@ logger = logging.getLogger(__name__)
 
 load_dotenv("C:/WidgetForge/widgetforge-backend/.env")
 
-AUTH_TOKEN = os.getenv("API_KEY")
-print("🔑 AUTH_TOKEN loaded from .env:", AUTH_TOKEN)
-
-class AdminAuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        path = request.url.path
-        if path.startswith("/admin/") and path not in ["/admin/login", "/admin/dashboard"]:
-            key = request.headers.get("X-API-KEY") or request.query_params.get("key")
-            if key != AUTH_TOKEN:
-                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-        return await call_next(request)
-
 app = FastAPI()
-app.add_middleware(AdminAuthMiddleware)
+app.add_middleware(AuthMiddleware)
 
-# Include MT5 routes
+# Initialize 5ers API client if configured
+# fivers_api_key = os.getenv("FIVERS_API_KEY")
+# if fivers_api_key:
+#     fivers_api_url = os.getenv("FIVERS_API_URL", "https://api.the5ers.com/mt5/investor")
+#     initialize_api_client(fivers_api_key, fivers_api_url)
+#     logger.info("5ers API client initialized")
+# else:
+#     logger.info("5ers API client not configured (FIVERS_API_KEY not set)")
+
+# Include routers
 app.include_router(mt5_router)
-app.include_router(mt5_terminal_router)
+app.include_router(auth_router)
+# app.include_router(account_router)
+# app.include_router(widget_router)
 
-@app.on_event("startup")
-async def startup_event():
-    """Load existing MT5 configuration on startup"""
-    from app.services.mt5_manager import mt5_manager
-    
-    cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".cache"))
-    config_file = os.path.join(cache_dir, "traders_config.json")
-    
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, "r") as f:
-                config = json.load(f)
-            
-            traders = config.get("traders", [])
-            if traders:
-                # Restore terminal configurations
-                for trader in traders:
-                    password = base64.b64decode(trader["password"]).decode()
-                    mt5_manager.add_terminal(
-                        login=trader["login"],
-                        password=password,
-                        server=trader["server"],
-                        label=trader["label"],
-                        terminal_path=trader["terminal_path"]
-                    )
-                
-                # Start polling
-                mt5_manager.start_polling(traders, interval=5)
-                print(f"🚀 Restored {len(traders)} MT5 terminals and started polling")
-        except Exception as e:
-            print(f"⚠️ Failed to restore MT5 configuration: {e}")
-    else:
-        print("ℹ️ No existing MT5 configuration found")
 
 static_path = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -121,7 +89,7 @@ def get_price_data(symbol: str):
 @app.websocket("/ws/price-stream")
 async def price_stream(websocket: WebSocket):
     await websocket.accept()
-    print("📡 Client connected to /ws/price-stream")
+    print("[WS] Client connected to /ws/price-stream")
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     symbols_file = os.path.join(base_dir, "pollers", "symbols.txt")
@@ -132,7 +100,7 @@ async def price_stream(websocket: WebSocket):
         print(f"✅ Loaded {len(symbols)} symbols from symbols.txt")
     except FileNotFoundError:
         await websocket.close()
-        print("❌ symbols.txt not found")
+        print("[ERROR] symbols.txt not found")
         return
     except Exception as e:
         await websocket.close()
@@ -144,39 +112,45 @@ async def price_stream(websocket: WebSocket):
             payload = []
             for symbol in symbols:
                 try:
-                    data = get_price(symbol)
-                    if data:
-                        payload.append({
-                            "symbol": symbol,
-                            "price": data.get("price"),
-                            "change_pct": data.get("change_pct"),
-                            "spread": data.get("spread")
-                        })
-                    else:
-                        print(f"⚠️ No price data available for: {symbol}")
-                except Exception as e:
-                    print(f"🚨 Error retrieving data for {symbol}: {e}")
+                    try:
+                      data = get_price(symbol)
+                      if data:
+                          payload.append({
+                              "symbol": symbol,
+                              "price": data.get("price"),
+                              "change_pct": data.get("change_pct"),
+                              "spread": data.get("spread")
+                          })
+                      else:
+                          print(f"[WARN] No price data available for: {symbol}")
+                  except Exception as e:
+                      print(f"[ERROR] Error retrieving data for {symbol}: {e}")
 
-            # Fallback dummy payload to avoid frontend disconnect
-            if not payload:
-                payload = [{"symbol": "N/A", "price": None, "change_pct": None, "spread": None}]
-                print("⚠️ No valid price data, sending fallback payload")
-
+                # Fallback dummy payload to avoid frontend disconnect
+                if not payload:
+                    payload = [{"symbol": "N/A", "price": None, "change_pct": None, "spread": None}]
+                    
             # Send payload and sleep
             try:
                 await websocket.send_json(payload)
-                print(f"📤 Sent payload with {len(payload)} entries")
+                print(f"Sent payload with {len(payload)} entries")
             except Exception as e:
-                print(f"🚨 Failed to send payload: {e}")
+                print(f"Failed to send payload: {e}")
                 break
 
             await asyncio.sleep(1)
 
-    except WebSocketDisconnect:
-        print("❌ Client disconnected from /ws/price-stream")
-    except Exception as e:
-        print(f"🚨 Unexpected WebSocket error: {e}")
-        
+            except WebSocketDisconnect:
+        print(f"[INFO] Loaded {len(symbols)} symbols from symbols.txt")
+            except FileNotFoundError:
+            await websocket.close()
+        print("[ERROR] symbols.txt not found")
+            return
+            except Exception as e:
+            await websocket.close()
+        print(f"[ERROR] Error reading symbols.txt: {e}")
+            return
+    
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login(request: Request):
     return templates.TemplateResponse("admin_login.html", {"request": request})
@@ -528,27 +502,16 @@ async def get_assets():
     except Exception as e:
         return f"<option disabled>Error loading symbols</option>"
     
-@app.get("/admin/account-widget", response_class=HTMLResponse)
-async def admin_account_widget(request: Request):
-    return templates.TemplateResponse("admin_account_widget.html", {
-        "request": request
-    })
-
-@app.get("/admin/mt5-manager", response_class=HTMLResponse)
-async def admin_mt5_manager(request: Request):
-    return templates.TemplateResponse("admin_mt5_manager.html", {
-        "request": request
-    })
-
-@app.get("/admin/mt5-terminal-manager", response_class=HTMLResponse)
-async def admin_mt5_terminal_manager(request: Request):
-    return templates.TemplateResponse("admin_mt5_terminal_manager.html", {
-        "request": request
-    })
 
 @app.get("/admin/enhanced-account-builder", response_class=HTMLResponse)
 async def admin_enhanced_account_builder(request: Request):
     return templates.TemplateResponse("admin_enhanced_account_builder.html", {
+        "request": request
+    })
+
+@app.get("/admin/account-manager", response_class=HTMLResponse)
+async def admin_account_manager(request: Request):
+    return templates.TemplateResponse("admin_account_manager.html", {
         "request": request
     })
 
@@ -811,68 +774,5 @@ async def rotating_financial_news_widget(request: Request):
         "open_links_new_tab": params.get("open_links_new_tab", "true")
     })
 
-@app.post("/api/save-traders")
-async def save_traders(request: Request, x_api_key: str = Header(None)):
-    if x_api_key != AUTH_TOKEN:
-        return JSONResponse({"status": "unauthorized"}, status_code=401)
-
-    try:
-        data = await request.json()
-        traders = data.get("traders", [])
-
-        if len(traders) > 9:
-            return JSONResponse({"status": "error", "detail": "Only 9 terminals are available."}, status_code=400)
-
-        # Assign each trader to Account2 through Account10
-        assigned = []
-        for i, trader in enumerate(traders):
-            trader["terminal_path"] = f"C:/MT5Terminals/Account{i + 2}"
-    
-        # Obfuscate password
-            plain_pw = trader["password"]
-            encoded_pw = base64.b64encode(plain_pw.encode()).decode()
-            trader["password"] = encoded_pw
-
-            assigned.append(trader)
-
-
-        # Determine paths
-        # Determine paths
-        backend_dir = os.path.dirname(os.path.abspath(__file__))  # C:/WidgetForge/widgetforge-backend/backend
-        base_dir = os.path.abspath(os.path.join(backend_dir, "..", ".."))  # C:/WidgetForge/widgetforge-backend
-        cache_dir = os.path.join(base_dir, ".cache")
-        login_file = os.path.join(cache_dir, "logins.json")
-        pid_file = os.path.join(cache_dir, "poller.pid")
-        poll_script = os.path.join(backend_dir, "app", "pollers", "poller_accounts.py")  # ✅ FIXED path
-
-        # Save login file
-        os.makedirs(cache_dir, exist_ok=True)
-        with open(login_file, "w") as f:
-            json.dump({"traders": assigned}, f, indent=2)
-
-        # Kill previous poller (if any)
-        if os.path.exists(pid_file):
-            try:
-                with open(pid_file, "r") as pf:
-                    old_pid = int(pf.read())
-                os.kill(old_pid, signal.SIGTERM)
-                print(f"🛑 Killed old poller process: PID {old_pid}")
-                os.remove(pid_file)
-            except Exception as e:
-                print(f"⚠️ Failed to kill old poller: {e}")
-
-        # Start new poller
-        try:
-            process = subprocess.Popen(["python", poll_script])
-            with open(pid_file, "w") as pf:
-                pf.write(str(process.pid))
-            print(f"🚀 Started new poller: PID {process.pid}")
-        except Exception as e:
-            return JSONResponse({"status": "error", "detail": f"Failed to start poller: {str(e)}"}, status_code=500)
-
-        return JSONResponse({"status": "success", "count": len(assigned)})
-
-    except Exception as e:
-        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
     
 

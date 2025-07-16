@@ -171,7 +171,6 @@ class ForexFactoryService:
 
         for event in events:
             enhanced_event = event.copy()
-
             # Only look for RSS results if we don't already have an actual value
             if not enhanced_event.get('actual', '').strip():
                 # Look for matching news in RSS feed
@@ -179,7 +178,6 @@ class ForexFactoryService:
                     news_title = news_item.get('title', '').lower()
                     event_title = event.get('title', '').lower()
                     event_country = event.get('country', '').lower()
-
                     # Check if this news item matches this economic event (more specific matching)
                     if self._is_specific_news_event_match(news_title, event_title, event_country):
                         # Extract actual result from news title
@@ -192,7 +190,6 @@ class ForexFactoryService:
             else:
                 # Mark that we already had the actual value from the original data
                 enhanced_event['actual_source'] = 'Calendar'
-
             enhanced_events.append(enhanced_event)
 
         return enhanced_events
@@ -274,7 +271,6 @@ class ForexFactoryService:
             'chf': ['swiss', 'switzerland', 'franc'],
             'nzd': ['new zealand', 'nz', 'kiwi']
         }
-
         # Check if news mentions the country/currency (more flexible matching)
         country_mentioned = False
         if event_country in currency_mappings:
@@ -319,14 +315,12 @@ class ForexFactoryService:
                     # Even without explicit country mention, if the indicator is very specific, allow it
                     if indicator in ['producer price', 'consumer price', 'employment change', 'unemployment rate']:
                         return True
-
         return False
     
     def _extract_actual_from_news_title(self, title: str) -> Optional[str]:
         """Extract actual result value from news title"""
         try:
             import re
-
             # Enhanced patterns to extract actual values from various news title formats
             actual_patterns = [
                 # Pattern: "Actual 83.1k" or "Actual: 83.1k"
@@ -361,7 +355,6 @@ class ForexFactoryService:
                     # Ensure it's a valid number format
                     if re.match(r'^[+-]?\d+\.?\d*%?[kmb]?$', actual_value):
                         return actual_value
-
             return None
 
         except Exception as e:
