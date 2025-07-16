@@ -13,6 +13,7 @@ class RSSService:
     
     def __init__(self):
         self.financial_juice_url = "https://www.financialjuice.com/feed.ashx?xy=rss"
+        self.myfxbook_url = "https://www.myfxbook.com/rss/forex-economic-calendar-events"
         self.cache_ttl = 300  # 5 minutes cache for frequent updates
         
     def fetch_financial_juice_news(self, max_items: int = 50) -> List[Dict]:
@@ -78,6 +79,94 @@ class RSSService:
         except Exception as e:
             logger.error(f"Error parsing RSS feed: {e}")
             return []
+
+    def fetch_myfxbook_economic_calendar(self, max_items: int = 50) -> List[Dict]:
+        """
+        Fetch MyFXBook economic calendar events with caching and archiving
+        
+        Args:
+            max_items: Maximum number of calendar events to return
+            
+        Returns:
+            List of economic calendar events with parsed data
+        """
+        cache_key = f"myfxbook_economic_calendar_{max_items}"
+        
+        # Try to get from cache first
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+            
+        try:
+            logger.info(f"Fetching MyFXBook economic calendar: {self.myfxbook_url}")
+            
+            # Fetch RSS feed
+            response = requests.get(self.myfxbook_url, timeout=10)
+            response.raise_for_status()
+            
+            # Parse RSS feed
+            feed = feedparser.parse(response.content)
+            
+            calendar_events = []
+            for entry in feed.entries[:max_items]:
+                # Clean the title
+                title = entry.get('title', '')
+                
+                calendar_event = {
+                    'title': title,
+                    'link': entry.get('link', ''),
+                    'description': entry.get('description', ''),
+                    'published': self._parse_date(entry.get('published', '')),
+                    'published_raw': entry.get('published', ''),
+                    'guid': entry.get('guid', ''),
+                    'author': 'MyFXBook',
+                    'source': 'MyFXBook Economic Calendar',
+                    'is_high_impact': self._is_high_impact_news(title),
+                    'time_ago': self._get_time_ago(entry.get('published', '')),
+                    'is_economic_data': True  # Mark as economic data
+                }
+                calendar_events.append(calendar_event)
+                
+            # Cache the results
+            cache.set(cache_key, calendar_events, expire=self.cache_ttl)
+            
+            # Archive economic data releases for longer storage
+            self._archive_economic_data_releases(calendar_events)
+            
+            logger.info(f"Successfully fetched {len(calendar_events)} MyFXBook calendar events")
+            return calendar_events
+            
+        except requests.RequestException as e:
+            logger.error(f"Error fetching MyFXBook RSS feed: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Error parsing MyFXBook RSS feed: {e}")
+            return []
+
+    def fetch_all_economic_news(self, max_items: int = 50) -> List[Dict]:
+        """
+        Fetch economic news from all sources (Financial Juice + MyFXBook)
+        
+        Args:
+            max_items: Maximum number of items per source
+            
+        Returns:
+            Combined list of news items from all sources
+        """
+        all_news = []
+        
+        # Get Financial Juice news
+        fj_news = self.fetch_financial_juice_news(max_items)
+        all_news.extend(fj_news)
+        
+        # Get MyFXBook economic calendar
+        myfxbook_events = self.fetch_myfxbook_economic_calendar(max_items)
+        all_news.extend(myfxbook_events)
+        
+        # Sort by publication date (most recent first)
+        all_news.sort(key=lambda x: x.get('published') or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        
+        return all_news
     
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Parse RSS date string to datetime object"""

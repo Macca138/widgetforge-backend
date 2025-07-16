@@ -77,6 +77,41 @@ async def get_financial_juice_news(max_items: int = 20):
             "data": []
         }
 
+@app.get("/api/rss/myfxbook-economic-calendar")
+async def get_myfxbook_economic_calendar(max_items: int = 20):
+    """Get MyFXBook economic calendar events from RSS feed"""
+    try:
+        calendar_events = rss_service.fetch_myfxbook_economic_calendar(max_items)
+        return {
+            "success": True,
+            "data": calendar_events,
+            "count": len(calendar_events)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": []
+        }
+
+@app.get("/api/rss/all-economic-news")
+async def get_all_economic_news(max_items: int = 20):
+    """Get combined economic news from all RSS sources"""
+    try:
+        all_news = rss_service.fetch_all_economic_news(max_items)
+        return {
+            "success": True,
+            "data": all_news,
+            "count": len(all_news),
+            "sources": list(set([item.get('source', 'Unknown') for item in all_news]))
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": []
+        }
+
 
 @app.get("/price/{symbol}")
 def get_price_data(symbol: str):
@@ -639,8 +674,8 @@ async def get_high_impact_events(max_items: int = 10):
 async def get_rotation_data(news_count: int = 8, events_count: int = 8):
     """Get data for rotating widget display with cross-referenced news"""
     try:
-        # Get news data (fetch more to find relevant items, then limit display)
-        all_news_items = rss_service.fetch_financial_juice_news(50)
+        # Get news data from all sources (fetch more to find relevant items, then limit display)
+        all_news_items = rss_service.fetch_all_economic_news(50)
         news_items = all_news_items[:news_count]
         
         # Get ONLY Forex Factory high-impact events (past and upcoming)
