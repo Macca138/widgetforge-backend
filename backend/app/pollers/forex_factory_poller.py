@@ -25,8 +25,10 @@ class ForexFactoryPoller:
     def __init__(self):
         # Configuration
         self.ff_calendar_url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-        self.update_interval = 3600  # Update every hour (3600 seconds)
-        self.retry_interval = 300    # Retry after 5 minutes on failure
+        self.weekly_update_interval = 604800  # Weekly update (7 days * 24 hours * 60 minutes * 60 seconds)
+        self.actual_update_interval = 60      # Update actuals every minute
+        self.retry_interval = 300            # Retry after 5 minutes on failure
+        self.last_weekly_update = None
         
         # Data directories (same as services expect)
         self.data_dir = Path(__file__).parent.parent.parent / "data"
@@ -36,10 +38,56 @@ class ForexFactoryPoller:
         self.data_dir.mkdir(exist_ok=True)
         self.backup_dir.mkdir(exist_ok=True)
         
+        # Load last weekly update time from metadata
+        self.load_last_weekly_update()
+        
         logger.info("Forex Factory Calendar Poller initialized")
         logger.info(f"Data directory: {self.data_dir}")
-        logger.info(f"Update interval: {self.update_interval} seconds")
+        logger.info(f"Weekly update interval: {self.weekly_update_interval} seconds (7 days)")
+        logger.info(f"Actual update interval: {self.actual_update_interval} seconds (1 minute)")
+        logger.info(f"Last weekly update: {self.last_weekly_update}")
         
+    def load_last_weekly_update(self):
+        """Load the last weekly update time from metadata"""
+        try:
+            metadata_file = self.data_dir / "ff_calendar_metadata.json"
+            if metadata_file.exists():
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                    last_weekly_str = metadata.get('last_weekly_update')
+                    if last_weekly_str:
+                        self.last_weekly_update = datetime.fromisoformat(last_weekly_str)
+                        logger.info(f"Loaded last weekly update time: {self.last_weekly_update}")
+                    else:
+                        logger.info("No last weekly update time found in metadata")
+            else:
+                logger.info("No metadata file found, will perform initial weekly update")
+        except Exception as e:
+            logger.warning(f"Error loading last weekly update time: {e}")
+    
+    def save_last_weekly_update(self):
+        """Save the last weekly update time to metadata"""
+        try:
+            metadata_file = self.data_dir / "ff_calendar_metadata.json"
+            metadata = {}
+            
+            # Load existing metadata if it exists
+            if metadata_file.exists():
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+            
+            # Update with last weekly update time
+            metadata['last_weekly_update'] = self.last_weekly_update.isoformat()
+            
+            # Save back to file
+            with open(metadata_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2)
+                
+            logger.info(f"Saved last weekly update time: {self.last_weekly_update}")
+            
+        except Exception as e:
+            logger.warning(f"Error saving last weekly update time: {e}")
+    
     def backup_existing_file(self):
         """Backup existing calendar file if it exists"""
         try:
@@ -145,9 +193,32 @@ class ForexFactoryPoller:
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
     
-    def update_calendar(self):
-        """Single update cycle"""
+    def is_sunday(self):
+        """Check if today is Sunday (start of trading week)"""
+        return datetime.now().weekday() == 6  # 6 = Sunday
+    
+    def should_update_weekly(self):
+        """Check if we should do a weekly calendar structure update"""
+        # Always update on Sunday
+        if self.is_sunday():
+            return True
+        
+        # Check if we've never done a weekly update
+        if self.last_weekly_update is None:
+            return True
+            
+        # Check if it's been more than a week since last update
+        time_since_last = datetime.now() - self.last_weekly_update
+        if time_since_last.total_seconds() > self.weekly_update_interval:
+            return True
+            
+        return False
+    
+    def update_calendar_structure(self):
+        """Weekly update - Download new calendar structure from Forex Factory"""
         try:
+            logger.info("Performing weekly calendar structure update...")
+            
             # Backup existing data
             self.backup_existing_file()
             
@@ -160,37 +231,80 @@ class ForexFactoryPoller:
             # Cleanup old files
             self.cleanup_old_files()
             
-            logger.info("Calendar update completed successfully")
+            # Update the last weekly update time
+            self.last_weekly_update = datetime.now()
+            self.save_last_weekly_update()
+            
+            logger.info("Weekly calendar structure update completed successfully")
             return True
             
         except Exception as e:
-            logger.error(f"Calendar update failed: {e}")
+            logger.error(f"Weekly calendar structure update failed: {e}")
+            return False
+    
+    def update_actual_results(self):
+        """Frequent update - Update actual results for existing events"""
+        try:
+            logger.info("Updating actual results from calendar...")
+            
+            # Download fresh calendar data to get updated actuals
+            calendar_data = self.download_calendar_data()
+            
+            # Load existing calendar structure
+            current_file = self.data_dir / "ff_calendar_current.json"
+            if not current_file.exists():
+                logger.warning("No existing calendar structure found, performing full update")
+                return self.update_calendar_structure()
+            
+            # For now, just update the current file with fresh data
+            # In the future, we could be smarter about only updating actuals
+            with open(current_file, 'w', encoding='utf-8') as f:
+                json.dump(calendar_data, f, indent=2, ensure_ascii=False)
+            
+            logger.info("Actual results update completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Actual results update failed: {e}")
             return False
     
     def run(self):
-        """Main polling loop"""
+        """Main polling loop with dual update schedule"""
         logger.info("Starting Forex Factory Calendar Poller...")
-        logger.info(f"Will update every {self.update_interval} seconds")
+        logger.info("Schedule: Weekly structure updates on Sunday, actual results every minute")
         
-        # Initial update
-        logger.info("Performing initial calendar update...")
-        success = self.update_calendar()
-        
-        if not success:
-            logger.warning("Initial update failed, will retry in normal cycle")
+        # Initial update - check if we need a weekly update first
+        if self.should_update_weekly():
+            logger.info("Performing initial weekly calendar structure update...")
+            success = self.update_calendar_structure()
+            if not success:
+                logger.warning("Initial weekly update failed, will retry in normal cycle")
+        else:
+            logger.info("Performing initial actual results update...")
+            success = self.update_actual_results()
+            if not success:
+                logger.warning("Initial actual results update failed, will retry in normal cycle")
         
         # Main polling loop
         while True:
             try:
-                logger.info(f"Waiting {self.update_interval} seconds until next update...")
-                time.sleep(self.update_interval)
+                logger.info(f"Waiting {self.actual_update_interval} seconds until next update...")
+                time.sleep(self.actual_update_interval)
                 
-                logger.info("Starting scheduled calendar update...")
-                success = self.update_calendar()
-                
-                if not success:
-                    logger.warning(f"Update failed, will retry in {self.retry_interval} seconds")
-                    time.sleep(self.retry_interval)
+                # Check if we need a weekly structure update
+                if self.should_update_weekly():
+                    logger.info("Starting weekly calendar structure update...")
+                    success = self.update_calendar_structure()
+                    if not success:
+                        logger.warning(f"Weekly update failed, will retry in {self.retry_interval} seconds")
+                        time.sleep(self.retry_interval)
+                else:
+                    # Regular actual results update
+                    logger.info("Starting actual results update...")
+                    success = self.update_actual_results()
+                    if not success:
+                        logger.warning(f"Actual results update failed, will retry in {self.retry_interval} seconds")
+                        time.sleep(self.retry_interval)
                 
             except KeyboardInterrupt:
                 logger.info("Received shutdown signal, stopping poller...")
