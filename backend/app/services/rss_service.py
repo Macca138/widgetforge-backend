@@ -17,7 +17,7 @@ class RSSService:
         
     def fetch_financial_juice_news(self, max_items: int = 50) -> List[Dict]:
         """
-        Fetch Financial Juice news with caching
+        Fetch Financial Juice news with caching and archiving
         
         Args:
             max_items: Maximum number of news items to return
@@ -65,6 +65,9 @@ class RSSService:
                 
             # Cache the results
             cache.set(cache_key, news_items, expire=self.cache_ttl)
+            
+            # Archive economic data releases for longer storage
+            self._archive_economic_data_releases(news_items)
             
             logger.info(f"Successfully fetched {len(news_items)} news items")
             return news_items
@@ -336,10 +339,30 @@ class RSSService:
         try:
             import re
             
-            # Look for patterns like "Actual 83.1k", "Actual: 83.1k", "Actual 2.5%"
+            # Enhanced patterns to extract actual values from various news title formats
             actual_patterns = [
-                r'actual[:\s]+([^\s\(]+)',  # "Actual 83.1k" or "Actual: 83.1k"
-                r'actual[:\s]+([^,\(]+)',   # "Actual 83.1k (Forecast..."
+                # Pattern: "Actual 83.1k" or "Actual: 83.1k"
+                r'actual[:\s]+([^\s\(,]+)',
+                # Pattern: "2.1% vs 2.0% Expected" or "2.1% vs 2.0% Forecast"
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s+vs\s+[+-]?\d+\.?\d*%?[kmb]?\s+(?:expected|forecast|est)',
+                # Pattern: "GDP 2.1% (Forecast 2.0%)" or "GDP 2.1% (Est 2.0%)"
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s*\((?:forecast|est|expected)[:\s]*[+-]?\d+\.?\d*%?[kmb]?\)',
+                # Pattern: "US GDP Growth Rate 2.1%" - extract number before common words
+                r'(?:rate|index|sales|change|growth|price|pmi|gdp|cpi|ppi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Employment Change 85.2k" - number after indicator
+                r'(?:employment|unemployment|retail|manufacturing|trade|building|housing|jobless|consumer|durable|services)[:\s]+(?:change|rate|sales|permits|claims|confidence|goods|pmi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "PPI 0.4%" - simple indicator followed by value
+                r'(?:ppi|cpi|gdp|pmi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Result: 2.1%" or "Result 2.1%"
+                r'result[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Comes in at 2.1%"
+                r'comes?\s+in\s+at\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Reported 2.1%" or "Reports 2.1%"
+                r'reports?\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "rises to 2.1%" or "falls to 2.1%"
+                r'(?:rises?|falls?|climbs?|drops?|jumps?)\s+to\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "hits 2.1%" or "reaches 2.1%"
+                r'(?:hits?|reaches?)\s+([+-]?\d+\.?\d*%?[kmb]?)',
             ]
             
             title_lower = title.lower()
@@ -349,13 +372,90 @@ class RSSService:
                     actual_value = match.group(1).strip()
                     # Clean up common trailing characters
                     actual_value = actual_value.rstrip('.,;')
-                    return actual_value
+                    # Ensure it's a valid number format
+                    if re.match(r'^[+-]?\d+\.?\d*%?[kmb]?$', actual_value):
+                        return actual_value
             
             return None
             
         except Exception as e:
             logger.warning(f"Failed to extract actual from title '{title}': {e}")
             return None
+
+    def _archive_economic_data_releases(self, news_items: List[Dict]) -> None:
+        """Archive economic data releases for longer-term storage"""
+        try:
+            from datetime import datetime, date
+            
+            # Look for news items that contain economic data
+            economic_keywords = [
+                'cpi', 'ppi', 'gdp', 'employment', 'unemployment', 'nonfarm', 'payroll', 
+                'retail sales', 'manufacturing', 'pmi', 'inflation', 'jobless claims',
+                'durable goods', 'consumer confidence', 'trade balance', 'building permits',
+                'housing starts', 'core cpi', 'core ppi', 'producer price', 'consumer price'
+            ]
+            
+            today = date.today().isoformat()
+            archive_key = f"rss_archive_{today}"
+            
+            # Get existing archive for today
+            existing_archive = cache.get(archive_key) or []
+            
+            # Find new economic data releases
+            new_economic_news = []
+            for item in news_items:
+                title_lower = item['title'].lower()
+                
+                # Check if this looks like an economic data release
+                if any(keyword in title_lower for keyword in economic_keywords):
+                    # Check if it has actual data (numbers/percentages)
+                    if any(char in item['title'] for char in ['%', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']):
+                        # Check if we haven't already archived this item
+                        if not any(archived['guid'] == item['guid'] for archived in existing_archive):
+                            item_with_actual = item.copy()
+                            # Try to extract actual value
+                            actual_value = self._extract_actual_from_news_title(item['title'])
+                            if actual_value:
+                                item_with_actual['extracted_actual'] = actual_value
+                                item_with_actual['archived_at'] = datetime.now().isoformat()
+                                new_economic_news.append(item_with_actual)
+                                logger.info(f"Archived economic data: {item['title']} -> {actual_value}")
+            
+            # Add new items to archive
+            if new_economic_news:
+                existing_archive.extend(new_economic_news)
+                # Keep only last 100 items to prevent unlimited growth
+                existing_archive = existing_archive[-100:]
+                # Cache archive for 24 hours
+                cache.set(archive_key, existing_archive, expire=86400)
+                logger.info(f"Archived {len(new_economic_news)} new economic data releases")
+                
+        except Exception as e:
+            logger.error(f"Failed to archive economic data: {e}")
+
+    def get_archived_economic_data(self, days_back: int = 7) -> List[Dict]:
+        """Get archived economic data releases from the last N days"""
+        try:
+            from datetime import datetime, date, timedelta
+            
+            archived_items = []
+            
+            # Check archives for the last N days
+            for i in range(days_back):
+                check_date = (date.today() - timedelta(days=i)).isoformat()
+                archive_key = f"rss_archive_{check_date}"
+                
+                day_archive = cache.get(archive_key) or []
+                archived_items.extend(day_archive)
+            
+            # Sort by archived time (most recent first)
+            archived_items.sort(key=lambda x: x.get('archived_at', ''), reverse=True)
+            
+            return archived_items
+            
+        except Exception as e:
+            logger.error(f"Failed to get archived economic data: {e}")
+            return []
 
 # Global instance
 rss_service = RSSService()

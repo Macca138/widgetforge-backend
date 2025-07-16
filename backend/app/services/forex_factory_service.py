@@ -166,26 +166,45 @@ class ForexFactoryService:
         return self.get_upcoming_events(max_events=max_events, impact_filter="High")
     
     def enhance_events_with_rss_results(self, events: List[Dict], rss_news: List[Dict]) -> List[Dict]:
-        """Enhance Forex Factory events with actual results from RSS news"""
+        """Enhance Forex Factory events with actual results from RSS news and archived data"""
         enhanced_events = []
+
+        # Import RSS service to get archived data
+        from .rss_service import rss_service
+        
+        # Get archived economic data from the last 7 days
+        archived_data = rss_service.get_archived_economic_data(days_back=7)
+        logger.info(f"Retrieved {len(archived_data)} archived economic data items")
+        
+        # Combine current RSS news with archived data
+        all_news_sources = list(rss_news) + archived_data
 
         for event in events:
             enhanced_event = event.copy()
             # Only look for RSS results if we don't already have an actual value
             if not enhanced_event.get('actual', '').strip():
-                # Look for matching news in RSS feed
-                for news_item in rss_news:
+                # Look for matching news in all news sources (current + archived)
+                for news_item in all_news_sources:
                     news_title = news_item.get('title', '').lower()
                     event_title = event.get('title', '').lower()
                     event_country = event.get('country', '').lower()
+                    
                     # Check if this news item matches this economic event (more specific matching)
                     if self._is_specific_news_event_match(news_title, event_title, event_country):
-                        # Extract actual result from news title
-                        actual_result = self._extract_actual_from_news_title(news_item.get('title', ''))
+                        # Try to get extracted actual value first (from archive)
+                        actual_result = news_item.get('extracted_actual')
+                        
+                        # If not found in archive, try to extract from title
+                        if not actual_result:
+                            actual_result = self._extract_actual_from_news_title(news_item.get('title', ''))
+                        
                         if actual_result:
                             enhanced_event['actual'] = actual_result
-                            enhanced_event['actual_source'] = 'RSS'
+                            enhanced_event['actual_source'] = 'Archived RSS' if 'archived_at' in news_item else 'RSS'
                             enhanced_event['matched_news'] = news_item.get('title', '')  # For debugging
+                            if 'archived_at' in news_item:
+                                enhanced_event['archived_at'] = news_item['archived_at']
+                            logger.info(f"Enhanced {event_title} with actual: {actual_result} from {enhanced_event['actual_source']}")
                             break
             else:
                 # Mark that we already had the actual value from the original data
