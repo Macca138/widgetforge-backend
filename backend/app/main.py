@@ -129,28 +129,54 @@ async def price_stream(websocket: WebSocket):
     try:
         with open(symbols_file, 'r') as f:
             symbols = [line.strip() for line in f if line.strip()]
+        print(f"✅ Loaded {len(symbols)} symbols from symbols.txt")
     except FileNotFoundError:
         await websocket.close()
         print("❌ symbols.txt not found")
+        return
+    except Exception as e:
+        await websocket.close()
+        print(f"❌ Error reading symbols.txt: {e}")
         return
 
     try:
         while True:
             payload = []
             for symbol in symbols:
-                data = get_price(symbol)
-                if data:
-                    payload.append({
-                        "symbol": symbol,
-                        "price": data.get("price"),
-                        "change_pct": data.get("change_pct"),
-                        "spread": data.get("spread")
-                    })
-            await websocket.send_json(payload)
+                try:
+                    data = get_price(symbol)
+                    if data:
+                        payload.append({
+                            "symbol": symbol,
+                            "price": data.get("price"),
+                            "change_pct": data.get("change_pct"),
+                            "spread": data.get("spread")
+                        })
+                    else:
+                        print(f"⚠️ No price data available for: {symbol}")
+                except Exception as e:
+                    print(f"🚨 Error retrieving data for {symbol}: {e}")
+
+            # Fallback dummy payload to avoid frontend disconnect
+            if not payload:
+                payload = [{"symbol": "N/A", "price": None, "change_pct": None, "spread": None}]
+                print("⚠️ No valid price data, sending fallback payload")
+
+            # Send payload and sleep
+            try:
+                await websocket.send_json(payload)
+                print(f"📤 Sent payload with {len(payload)} entries")
+            except Exception as e:
+                print(f"🚨 Failed to send payload: {e}")
+                break
+
             await asyncio.sleep(1)
+
     except WebSocketDisconnect:
         print("❌ Client disconnected from /ws/price-stream")
-
+    except Exception as e:
+        print(f"🚨 Unexpected WebSocket error: {e}")
+        
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login(request: Request):
     return templates.TemplateResponse("admin_login.html", {"request": request})
@@ -680,8 +706,26 @@ async def get_rotation_data(news_count: int = 8, events_count: int = 8):
         enhanced_past_events = forex_factory_service.enhance_events_with_rss_results(recent_past_events, all_news_items)
         enhanced_upcoming_events = forex_factory_service.enhance_events_with_rss_results(upcoming_events, all_news_items)
         
-        # Combine and limit to events_count total (only FF high-impact)
-        calendar_display_events = (enhanced_past_events + enhanced_upcoming_events)[:events_count]
+        # Combine events with priority for upcoming events (ensure USD PPI and other future events show)
+        # Prioritize upcoming events, then fill remaining slots with past events
+        max_upcoming = max(6, events_count // 2)  # Ensure at least 6 upcoming events or half the total
+        max_past = events_count - len(enhanced_upcoming_events[:max_upcoming])
+
+        calendar_display_events = enhanced_upcoming_events[:max_upcoming] + enhanced_past_events[:max_past]
+        
+        # Remove duplicates based on title and country
+        seen_events = set()
+        deduplicated_events = []
+        for event in calendar_display_events:
+            event_key = (event.get('title', ''), event.get('country', ''))
+            if event_key not in seen_events:
+                seen_events.add(event_key)
+                deduplicated_events.append(event)
+
+        calendar_display_events = deduplicated_events
+
+        # Sort combined events by timestamp for proper chronological order
+        calendar_display_events.sort(key=lambda x: x.get('timestamp', 0))
         all_events = forex_factory_service.get_todays_events() + upcoming_events
         
         # Cross-reference news with calendar events (but keep chronological order)
