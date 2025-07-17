@@ -8,6 +8,14 @@ WidgetForge Backend is a MetaTrader 5 (MT5) trading terminal management system t
 ## Development Commands
 
 ### Running the Application
+
+#### Production (Windows Server 2019)
+```bash
+cd backend
+START_WIDGETFORGE.bat
+```
+
+#### Development
 ```bash
 cd backend
 uvicorn app.main:app --reload
@@ -81,19 +89,19 @@ The system is being redesigned to replace MT5 account data collection with 5ers 
 ### Critical Reference Documents
 When working on this project, always reference these analysis documents:
 
-1. **`/AUTHENTICATION_SYSTEM_DESIGN.md`**: Complete design for new role-based authentication system
+1. **`/docs/architecture/authentication-system.md`**: Complete design for new role-based authentication system
    - User roles (trader/admin) and permissions
    - Database schema with user names for widget display
    - Authentication flow and security implementation
    - Phase-by-phase implementation plan
 
-2. **`/MT5_COMPONENT_ANALYSIS.md`**: Analysis of MT5 components and their dependencies
+2. **`/docs/architecture/mt5-component-analysis.md`**: Analysis of MT5 components and their dependencies
    - Two independent MT5 systems: price data vs account data
    - Components safe to remove vs essential for price widgets
    - Mini chart and price widget dependencies
    - Cleanup safety checklist
 
-3. **`/MT5_API_Project_Outline.md`**: Project outline for 5ers API integration
+3. **`/docs/api/5ers-api-integration.md`**: Project outline for 5ers API integration
    - Technical requirements for 5ers API
    - Security considerations and implementation approach
    - Example API client code with safety measures

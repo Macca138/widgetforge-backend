@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(rm:*)",
+      "Bash(git push:*)",
+      "Bash(git restore:*)",
+      "Bash(mkdir:*)",
+      "Bash(move:*)",
+      "Bash(mv:*)"
+    ],
+    "deny": []
+  }
+}
