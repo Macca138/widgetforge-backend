@@ -14,7 +14,8 @@
       "Bash(mkdir:*)",
       "Bash(move:*)",
       "Bash(mv:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(du:*)"
     ],
     "deny": []
   }

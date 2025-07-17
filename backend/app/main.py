@@ -526,11 +526,6 @@ async def admin_enhanced_account_builder(request: Request):
         "request": request
     })
 
-@app.get("/admin/account-manager", response_class=HTMLResponse)
-async def admin_account_manager(request: Request):
-    return templates.TemplateResponse("admin_account_manager.html", {
-        "request": request
-    })
 
 @app.get("/admin/mini-chart-builder", response_class=HTMLResponse)
 async def admin_mini_chart_builder(request: Request):
