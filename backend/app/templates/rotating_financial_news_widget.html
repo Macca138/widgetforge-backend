@@ -536,6 +536,7 @@
                 
                 this.initializeWidget();
                 this.startDataRefresh();
+                this.startTimeUpdater(); // Start live time updates
                 // Start rotation after calendar data loads
                 setTimeout(() => {
                     this.startRotation();
@@ -713,11 +714,14 @@
                 
                 const countryFlag = this.getCountryFlag(item.country);
                 
+                // Use client-side time calculation if timestamp is available, otherwise fallback to server time
+                const timeDisplay = item.timestamp ? this.calculateTimeUntil(item.timestamp) : item.time_until;
+                
                 div.innerHTML = `
                     <div class="item-title">${item.title}</div>
                     <div class="event-details">
                         <span class="currency-flag">${countryFlag}</span>
-                        <span class="event-time">${item.time_until}</span>
+                        <span class="event-time" ${item.timestamp ? `data-timestamp="${item.timestamp}"` : ''}>${timeDisplay}</span>
                         <span class="impact-badge impact-${item.impact.toLowerCase()}">${item.impact}</span>
                         ${item.status === 'completed' ? '<span class="status-badge">✓</span>' : ''}
                     </div>
@@ -790,6 +794,68 @@
                 return 'Economic Events';
             }
 
+            calculateTimeUntil(timestamp) {
+                /**
+                 * Calculate human-readable time until event from timestamp
+                 * Returns format like "in 2h 15m", "in 45m", "15m ago", etc.
+                 */
+                try {
+                    const now = Math.floor(Date.now() / 1000); // Current time in seconds
+                    const eventTime = timestamp;
+                    const deltaSeconds = eventTime - now;
+                    
+                    if (deltaSeconds < 0) {
+                        // Event has passed
+                        const absSeconds = Math.abs(deltaSeconds);
+                        if (absSeconds < 3600) { // Less than 1 hour ago
+                            const minutes = Math.floor(absSeconds / 60);
+                            return `${minutes}m ago`;
+                        } else if (absSeconds < 86400) { // Less than 1 day ago
+                            const hours = Math.floor(absSeconds / 3600);
+                            return `${hours}h ago`;
+                        } else {
+                            const days = Math.floor(absSeconds / 86400);
+                            return `${days}d ago`;
+                        }
+                    } else {
+                        // Event is upcoming
+                        if (deltaSeconds < 3600) { // Less than 1 hour
+                            const minutes = Math.floor(deltaSeconds / 60);
+                            return `in ${minutes}m`;
+                        } else if (deltaSeconds < 86400) { // Less than 1 day
+                            const hours = Math.floor(deltaSeconds / 3600);
+                            const minutes = Math.floor((deltaSeconds % 3600) / 60);
+                            if (minutes > 0) {
+                                return `in ${hours}h ${minutes}m`;
+                            } else {
+                                return `in ${hours}h`;
+                            }
+                        } else {
+                            const days = Math.floor(deltaSeconds / 86400);
+                            return `in ${days}d`;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error calculating time until:', error);
+                    return 'Recent';
+                }
+            }
+
+            startTimeUpdater() {
+                /**
+                 * Update all visible time displays every minute
+                 */
+                setInterval(() => {
+                    // Update time displays for all visible events
+                    document.querySelectorAll('.event-time[data-timestamp]').forEach(timeElement => {
+                        const timestamp = parseInt(timeElement.dataset.timestamp);
+                        if (timestamp) {
+                            timeElement.textContent = this.calculateTimeUntil(timestamp);
+                        }
+                    });
+                }, 60000); // Update every minute
+            }
+
             startDataRefresh() {
                 setInterval(() => {
                     // Only refresh if not currently transitioning
@@ -799,15 +865,6 @@
                     }
                 }, this.refreshInterval * 1000);
             }
-            
-
-            startDataRefresh() {
-                setInterval(() => {
-                    // Only refresh calendar data - FJ widget handles its own refresh
-                    this.loadCalendarData();
-                }, this.refreshInterval * 1000);
-            }
-
 
         }
 
