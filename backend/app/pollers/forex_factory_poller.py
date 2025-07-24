@@ -26,7 +26,7 @@ class ForexFactoryPoller:
         # Configuration
         self.ff_calendar_url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
         self.weekly_update_interval = 604800  # Weekly update (7 days * 24 hours * 60 minutes * 60 seconds)
-        self.actual_update_interval = 60      # Update actuals every minute
+        self.actual_update_interval = 180     # Update actuals every 3 minutes
         self.retry_interval = 300            # Retry after 5 minutes on failure
         self.last_weekly_update = None
         
@@ -44,7 +44,7 @@ class ForexFactoryPoller:
         logger.info("Forex Factory Calendar Poller initialized")
         logger.info(f"Data directory: {self.data_dir}")
         logger.info(f"Weekly update interval: {self.weekly_update_interval} seconds (7 days)")
-        logger.info(f"Actual update interval: {self.actual_update_interval} seconds (1 minute)")
+        logger.info(f"Actual update interval: {self.actual_update_interval} seconds (3 minutes)")
         logger.info(f"Last weekly update: {self.last_weekly_update}")
         
     def load_last_weekly_update(self):
