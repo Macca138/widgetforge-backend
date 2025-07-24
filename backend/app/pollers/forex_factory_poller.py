@@ -26,7 +26,7 @@ class ForexFactoryPoller:
         # Configuration
         self.ff_calendar_url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
         self.weekly_update_interval = 604800  # Weekly update (7 days * 24 hours * 60 minutes * 60 seconds)
-        self.actual_update_interval = 180     # Update actuals every 3 minutes
+        self.actual_update_interval = 300     # Check for RSS updates every 5 minutes
         self.retry_interval = 300            # Retry after 5 minutes on failure
         self.last_weekly_update = None
         
@@ -44,7 +44,7 @@ class ForexFactoryPoller:
         logger.info("Forex Factory Calendar Poller initialized")
         logger.info(f"Data directory: {self.data_dir}")
         logger.info(f"Weekly update interval: {self.weekly_update_interval} seconds (7 days)")
-        logger.info(f"Actual update interval: {self.actual_update_interval} seconds (3 minutes)")
+        logger.info(f"Actual update interval: {self.actual_update_interval} seconds (5 minutes)")
         logger.info(f"Last weekly update: {self.last_weekly_update}")
         
     def load_last_weekly_update(self):
@@ -288,25 +288,23 @@ class ForexFactoryPoller:
             return False
     
     def update_actual_results(self):
-        """Frequent update - Update actual results for existing events"""
+        """Frequent update - Update actual results from RSS feeds (not JSON API)"""
         try:
-            logger.info("Updating actual results from calendar...")
-            
-            # Download fresh calendar data to get updated actuals
-            calendar_data = self.download_calendar_data()
+            logger.info("Updating actual results from RSS feeds...")
             
             # Load existing calendar structure
             current_file = self.data_dir / "ff_calendar_current.json"
             if not current_file.exists():
-                logger.warning("No existing calendar structure found, performing full update")
-                return self.update_calendar_structure()
+                logger.warning("No existing calendar structure found, need weekly update first")
+                return False
             
-            # For now, just update the current file with fresh data
-            # In the future, we could be smarter about only updating actuals
-            with open(current_file, 'w', encoding='utf-8') as f:
-                json.dump(calendar_data, f, indent=2, ensure_ascii=False)
+            # TODO: Implement RSS feed parsing for actual results
+            # For now, we'll just skip this update to avoid hitting the JSON API
+            # The weekly structure update provides the base calendar data
+            # RSS feed parsing should update the 'actual' values in existing events
             
-            logger.info("Actual results update completed successfully")
+            logger.info("Actual results update skipped - RSS feed parsing not yet implemented")
+            logger.info("Using existing calendar structure until RSS parsing is added")
             return True
             
         except Exception as e:
@@ -316,7 +314,7 @@ class ForexFactoryPoller:
     def run(self):
         """Main polling loop with dual update schedule"""
         logger.info("Starting Forex Factory Calendar Poller...")
-        logger.info("Schedule: Weekly structure updates on Sunday, actual results every minute")
+        logger.info("Schedule: Weekly structure updates on Sunday, RSS feed checks every 5 minutes")
         
         # Initial update - check if we need a weekly update first
         if self.should_update_weekly():
