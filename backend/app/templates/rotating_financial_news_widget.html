@@ -812,7 +812,12 @@
                             return `${minutes}m ago`;
                         } else if (absSeconds < 86400) { // Less than 1 day ago
                             const hours = Math.floor(absSeconds / 3600);
-                            return `${hours}h ago`;
+                            const minutes = Math.floor((absSeconds % 3600) / 60);
+                            if (minutes > 0) {
+                                return `${hours}h ${minutes}m ago`;
+                            } else {
+                                return `${hours}h ago`;
+                            }
                         } else {
                             const days = Math.floor(absSeconds / 86400);
                             return `${days}d ago`;
