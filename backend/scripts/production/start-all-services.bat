@@ -9,8 +9,8 @@ echo.
 echo Starting all services in separate PowerShell terminals...
 echo.
 
-REM Get the current directory (backend folder)
-set "BACKEND_DIR=%~dp0"
+REM Get the backend directory (two levels up from scripts\production)
+set "BACKEND_DIR=%~dp0..\.."
 cd /d "%BACKEND_DIR%"
 
 echo Current directory: %BACKEND_DIR%
