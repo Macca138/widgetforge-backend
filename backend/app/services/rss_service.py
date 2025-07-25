@@ -14,6 +14,14 @@ class RSSService:
     def __init__(self):
         self.financial_juice_url = "https://www.financialjuice.com/feed.ashx?xy=rss"
         self.myfxbook_url = "https://www.myfxbook.com/rss/forex-economic-calendar-events"
+        
+        # Additional RSS sources for better economic data coverage
+        self.additional_sources = {
+            'MarketWatch': 'https://feeds.marketwatch.com/marketwatch/topstories/',
+            'Investing.com': 'https://www.investing.com/rss/news_285.rss',
+            'ForexLive': 'https://www.forexlive.com/feed/'
+        }
+        
         self.cache_ttl = 300  # 5 minutes cache for frequent updates
         
     def fetch_financial_juice_news(self, max_items: int = 50) -> List[Dict]:
@@ -163,10 +171,17 @@ class RSSService:
         myfxbook_events = self.fetch_myfxbook_economic_calendar(max_items)
         all_news.extend(myfxbook_events)
         
+        # Get from additional sources for better coverage
+        additional_news = self.fetch_additional_sources(max_items // 3)
+        all_news.extend(additional_news)
+        
+        # Remove duplicates based on title similarity
+        all_news = self._remove_duplicate_news(all_news)
+        
         # Sort by publication date (most recent first)
         all_news.sort(key=lambda x: x.get('published') or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
         
-        return all_news
+        return all_news[:max_items]
     
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Parse RSS date string to datetime object"""
@@ -545,6 +560,167 @@ class RSSService:
         except Exception as e:
             logger.error(f"Failed to get archived economic data: {e}")
             return []
+
+    def fetch_additional_sources(self, max_items: int = 20) -> List[Dict]:
+        """
+        Fetch economic news from additional RSS sources
+        
+        Args:
+            max_items: Maximum number of items to return from all additional sources
+            
+        Returns:
+            List of news items from additional sources
+        """
+        all_additional_news = []
+        items_per_source = max(1, max_items // len(self.additional_sources))
+        
+        for source_name, url in self.additional_sources.items():
+            try:
+                cache_key = f"additional_rss_{source_name}_{items_per_source}"
+                
+                # Try cache first
+                cached_data = cache.get(cache_key)
+                if cached_data:
+                    all_additional_news.extend(cached_data)
+                    continue
+                
+                logger.info(f"Fetching {source_name} RSS feed: {url}")
+                
+                # Fetch RSS feed with proper headers
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                
+                # Parse RSS feed
+                import feedparser
+                feed = feedparser.parse(response.content)
+                
+                source_news = []
+                for entry in feed.entries[:items_per_source]:
+                    # Filter for economic relevance
+                    title = entry.get('title', '')
+                    if self._is_economic_relevant(title):
+                        news_item = {
+                            'title': title,
+                            'link': entry.get('link', ''),
+                            'description': entry.get('description', entry.get('summary', '')),
+                            'published': self._parse_date(entry.get('published', '')),
+                            'published_raw': entry.get('published', ''),
+                            'guid': entry.get('guid', ''),
+                            'author': source_name,
+                            'source': source_name,
+                            'is_high_impact': self._is_high_impact_news(title),
+                            'time_ago': self._get_time_ago(entry.get('published', ''))
+                        }
+                        source_news.append(news_item)
+                
+                # Cache the results
+                cache.set(cache_key, source_news, expire=self.cache_ttl)
+                all_additional_news.extend(source_news)
+                
+                logger.info(f"Successfully fetched {len(source_news)} economic items from {source_name}")
+                
+            except Exception as e:
+                logger.warning(f"Failed to fetch from {source_name}: {e}")
+                continue
+        
+        return all_additional_news[:max_items]
+
+    def _is_economic_relevant(self, title: str) -> bool:
+        """
+        Check if a news title is economically relevant
+        
+        Args:
+            title: News title to check
+            
+        Returns:
+            True if the title contains economic keywords
+        """
+        title_lower = title.lower()
+        
+        # Core economic indicators
+        economic_keywords = [
+            'gdp', 'inflation', 'cpi', 'ppi', 'employment', 'unemployment', 'jobs', 'payroll',
+            'retail sales', 'manufacturing', 'pmi', 'interest rate', 'fed', 'federal reserve',
+            'central bank', 'ecb', 'boe', 'boj', 'fomc', 'rate decision', 'monetary policy',
+            'consumer confidence', 'consumer spending', 'durable goods', 'trade balance',
+            'building permits', 'housing starts', 'jobless claims', 'nonfarm', 'non-farm',
+            'producer price', 'consumer price', 'core inflation', 'economic growth',
+            'recession', 'beige book', 'earnings', 'ism', 'business confidence',
+            'industrial production', 'capacity utilization', 'new home sales',
+            'existing home sales', 'pending home sales', 'mortgage rates'
+        ]
+        
+        # Currency and market terms
+        market_keywords = [
+            'usd', 'eur', 'gbp', 'jpy', 'aud', 'cad', 'chf', 'nzd',
+            'dollar', 'euro', 'pound', 'yen', 'forex', 'fx',
+            'treasury', 'bond', 'yield', 'stocks', 'market'
+        ]
+        
+        # Economic entities and regions
+        entity_keywords = [
+            'united states', 'us ', 'usa', 'europe', 'eurozone', 'uk', 'britain',
+            'japan', 'china', 'canada', 'australia', 'switzerland', 'new zealand'
+        ]
+        
+        all_keywords = economic_keywords + market_keywords + entity_keywords
+        
+        return any(keyword in title_lower for keyword in all_keywords)
+
+    def _remove_duplicate_news(self, news_items: List[Dict]) -> List[Dict]:
+        """
+        Remove duplicate news items based on title similarity
+        
+        Args:
+            news_items: List of news items to deduplicate
+            
+        Returns:
+            List of unique news items
+        """
+        if not news_items:
+            return news_items
+        
+        unique_items = []
+        seen_titles = set()
+        
+        for item in news_items:
+            title = item.get('title', '').lower().strip()
+            
+            # Create a normalized version for duplicate detection
+            # Remove common prefixes and normalize spacing
+            normalized_title = title
+            for prefix in ['breaking:', 'update:', 'alert:', 'news:', 'forex:', 'fx:']:
+                if normalized_title.startswith(prefix):
+                    normalized_title = normalized_title[len(prefix):].strip()
+            
+            # Remove extra whitespace and punctuation
+            normalized_title = ' '.join(normalized_title.split())
+            normalized_title = normalized_title.rstrip('.,!?;:')
+            
+            # Check for similarity with existing titles
+            is_duplicate = False
+            for seen_title in seen_titles:
+                # Simple similarity check: if 80% of words match, consider it duplicate
+                title_words = set(normalized_title.split())
+                seen_words = set(seen_title.split())
+                
+                if len(title_words) > 0 and len(seen_words) > 0:
+                    intersection = len(title_words.intersection(seen_words))
+                    union = len(title_words.union(seen_words))
+                    similarity = intersection / union if union > 0 else 0
+                    
+                    if similarity > 0.8:  # 80% similarity threshold
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
+                unique_items.append(item)
+                seen_titles.add(normalized_title)
+        
+        return unique_items
 
 # Global instance
 rss_service = RSSService()
