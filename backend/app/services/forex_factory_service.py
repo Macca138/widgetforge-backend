@@ -337,48 +337,128 @@ class ForexFactoryService:
         return False
     
     def _extract_actual_from_news_title(self, title: str) -> Optional[str]:
-        """Extract actual result value from news title"""
+        """Extract actual result value from news title with enhanced patterns and validation"""
         try:
             import re
+            
             # Enhanced patterns to extract actual values from various news title formats
             actual_patterns = [
                 # Pattern: "Actual 83.1k" or "Actual: 83.1k"
-                r'actual[:\s]+([^\s\(,]+)',
+                r'actual[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
                 # Pattern: "2.1% vs 2.0% Expected" or "2.1% vs 2.0% Forecast"
-                r'([+-]?\d+\.?\d*%?[kmb]?)\s+vs\s+[+-]?\d+\.?\d*%?[kmb]?\s+(?:expected|forecast|est)',
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s+vs\.?\s+[+-]?\d+\.?\d*%?[kmb]?\s+(?:expected|forecast|est)',
                 # Pattern: "GDP 2.1% (Forecast 2.0%)" or "GDP 2.1% (Est 2.0%)"
                 r'([+-]?\d+\.?\d*%?[kmb]?)\s*\((?:forecast|est|expected)[:\s]*[+-]?\d+\.?\d*%?[kmb]?\)',
-                # Pattern: "US GDP Growth Rate 2.1%" - extract number before common words
-                r'(?:rate|index|sales|change|growth|price|pmi|gdp|cpi|ppi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
-                # Pattern: "Employment Change 85.2k" - number after indicator
-                r'(?:employment|unemployment|retail|manufacturing|trade|building|housing|jobless|consumer|durable|services)[:\s]+(?:change|rate|sales|permits|claims|confidence|goods|pmi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
-                # Pattern: "PPI 0.4%" - simple indicator followed by value
-                r'(?:ppi|cpi|gdp|pmi)[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
-                # Pattern: general number before vs/forecast
-                r'([+-]?\d+\.?\d*%?[kmb]?)\s+(?:vs|v)\s+[+-]?\d+\.?\d*%?[kmb]?',
+                # Pattern: "comes in at 2.1%" or "reported at 2.1%"
+                r'(?:comes?\s+in\s+at|reported\s+at|arrives?\s+at)\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "rises to 2.1%" or "falls to 2.1%" or "climbs to 2.1%"
+                r'(?:rises?\s+to|falls?\s+to|climbs?\s+to|drops?\s+to|jumps?\s+to|slides?\s+to)\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "hits 2.1%" or "reaches 2.1%"
+                r'(?:hits?|reaches?|touches?|prints?)\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "shows 2.1%" or "registers 2.1%"
+                r'(?:shows?|registers?|posts?|records?)\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: PMI specific - "PMI at 52.1" or "PMI 52.1"
+                r'pmi\s+(?:at\s+)?([+-]?\d+\.?\d*)',
+                # Pattern: "GDP Growth 2.1%" or "CPI Inflation 2.1%"
+                r'(?:gdp|cpi|ppi|inflation|growth|unemployment|employment)\s+(?:rate\s+|growth\s+|at\s+)?([+-]?\d+\.?\d*%?[kmb]?)',
                 # Pattern: "Result: 2.1%" or "Result 2.1%"
                 r'result[:\s]+([+-]?\d+\.?\d*%?[kmb]?)',
-                # Pattern: "Comes in at 2.1%"
-                r'comes?\s+in\s+at\s+([+-]?\d+\.?\d*%?[kmb]?)',
-                # Pattern: "Reported 2.1%" or "Reports 2.1%"
-                r'reports?\s+([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "Final reading 2.1%" or "Preliminary 2.1%"
+                r'(?:final|preliminary|revised|initial)\s+(?:reading\s+|figure\s+|estimate\s+)?([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: "beats expectations at 2.1%" or "misses forecast at 2.1%"
+                r'(?:beats?|misses?)\s+(?:expectations?|forecasts?)\s+(?:at\s+|with\s+)([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: specific economic indicators followed by value
+                r'(?:employment|unemployment|retail|manufacturing|trade|building|housing|jobless|consumer|durable|services)\s+(?:change|rate|sales|permits|claims|confidence|goods|index)\s+(?:at\s+|of\s+)?([+-]?\d+\.?\d*%?[kmb]?)',
+                # Pattern: general number before vs/v (more flexible)
+                r'([+-]?\d+\.?\d*%?[kmb]?)\s+(?:vs\.?|v\.?)\s+[+-]?\d+\.?\d*%?[kmb]?'
             ]
 
             title_lower = title.lower()
+            extracted_values = []
+            
             for pattern in actual_patterns:
-                match = re.search(pattern, title_lower)
-                if match:
+                matches = re.finditer(pattern, title_lower)
+                for match in matches:
                     actual_value = match.group(1).strip()
                     # Clean up common trailing characters
-                    actual_value = actual_value.rstrip('.,;')
-                    # Ensure it's a valid number format
-                    if re.match(r'^[+-]?\d+\.?\d*%?[kmb]?$', actual_value):
-                        return actual_value
+                    actual_value = actual_value.rstrip('.,;:')
+                    
+                    # Validate the extracted value
+                    if self._validate_extracted_value(actual_value, title):
+                        extracted_values.append(actual_value)
+            
+            # Return the first valid value, prioritizing more specific patterns
+            if extracted_values:
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_values = []
+                for val in extracted_values:
+                    if val not in seen:
+                        seen.add(val)
+                        unique_values.append(val)
+                
+                return unique_values[0]
+            
             return None
 
         except Exception as e:
             logger.warning(f"Failed to extract actual from title '{title}': {e}")
             return None
+
+    def _validate_extracted_value(self, value: str, title: str) -> bool:
+        """
+        Validate that an extracted value is reasonable for economic data
+        
+        Args:
+            value: The extracted value to validate
+            title: The original title for context
+            
+        Returns:
+            True if the value appears to be a valid economic indicator
+        """
+        try:
+            import re
+            
+            # Basic format validation
+            if not re.match(r'^[+-]?\d+\.?\d*%?[kmb]?$', value, re.IGNORECASE):
+                return False
+            
+            # Extract numeric part
+            numeric_match = re.match(r'^([+-]?\d+\.?\d*)', value)
+            if not numeric_match:
+                return False
+            
+            numeric_value = float(numeric_match.group(1))
+            title_lower = title.lower()
+            
+            # Context-based validation
+            # PMI values should be roughly 0-100
+            if 'pmi' in title_lower:
+                return 0 <= abs(numeric_value) <= 200  # Allow some flexibility
+            
+            # Percentage values should be reasonable
+            if '%' in value:
+                # Most economic percentages are between -50% and +50%
+                return -100 <= numeric_value <= 100
+            
+            # Employment/unemployment numbers with k/m suffixes
+            if any(term in title_lower for term in ['employment', 'jobs', 'payroll', 'unemployment', 'jobless']):
+                if value.lower().endswith(('k', 'm')):
+                    return -10000 <= numeric_value <= 10000  # Reasonable range for employment changes
+            
+            # GDP values are usually small percentages
+            if 'gdp' in title_lower:
+                return -20 <= numeric_value <= 20
+            
+            # Interest rates are usually small percentages
+            if any(term in title_lower for term in ['rate', 'fed', 'federal', 'interest']):
+                return -10 <= numeric_value <= 25
+            
+            # Default validation - allow reasonable economic values
+            return -1000000 <= numeric_value <= 1000000
+            
+        except (ValueError, TypeError):
+            return False
 
     def get_recent_past_events(self, max_events: int = 10, impact_filter: Optional[str] = None) -> List[Dict]:
         """Get recent past events that have already occurred with actual results"""
