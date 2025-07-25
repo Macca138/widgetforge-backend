@@ -32,14 +32,6 @@
     "previous": "-0.3%"
   },
   {
-    "title": "Foreign Direct Investment ytd/y",
-    "country": "CNY",
-    "date": "2025-07-20T19:41:00-04:00",
-    "impact": "Low",
-    "forecast": "",
-    "previous": "-13.2%"
-  },
-  {
     "title": "1-y Loan Prime Rate",
     "country": "CNY",
     "date": "2025-07-20T21:00:00-04:00",
@@ -56,11 +48,19 @@
     "previous": "3.50%"
   },
   {
+    "title": "Foreign Direct Investment ytd/y",
+    "country": "CNY",
+    "date": "2025-07-21T02:02:00-04:00",
+    "impact": "Low",
+    "forecast": "",
+    "previous": "-13.2%"
+  },
+  {
     "title": "IPPI m/m",
     "country": "CAD",
     "date": "2025-07-21T08:30:00-04:00",
     "impact": "Low",
-    "forecast": "0.1%",
+    "forecast": "0.3%",
     "previous": "-0.5%"
   },
   {
@@ -68,7 +68,7 @@
     "country": "CAD",
     "date": "2025-07-21T08:30:00-04:00",
     "impact": "Low",
-    "forecast": "-0.1%",
+    "forecast": "-0.2%",
     "previous": "-0.4%"
   },
   {
@@ -108,7 +108,7 @@
     "country": "GBP",
     "date": "2025-07-22T02:00:00-04:00",
     "impact": "Low",
-    "forecast": "17.4B",
+    "forecast": "17.6B",
     "previous": "17.7B"
   },
   {
@@ -130,9 +130,9 @@
   {
     "title": "Richmond Manufacturing Index",
     "country": "USD",
-    "date": "2025-07-22T09:59:00-04:00",
+    "date": "2025-07-22T10:00:00-04:00",
     "impact": "Medium",
-    "forecast": "-2",
+    "forecast": "-3",
     "previous": "-7"
   },
   {
@@ -162,7 +162,7 @@
   {
     "title": "German 10-y Bond Auction",
     "country": "EUR",
-    "date": "2025-07-23T05:31:00-04:00",
+    "date": "2025-07-23T05:42:00-04:00",
     "impact": "Low",
     "forecast": "",
     "previous": "2.63|1.6"
@@ -188,7 +188,7 @@
     "country": "USD",
     "date": "2025-07-23T10:00:00-04:00",
     "impact": "Medium",
-    "forecast": "4.00M",
+    "forecast": "4.01M",
     "previous": "4.03M"
   },
   {
@@ -196,16 +196,8 @@
     "country": "USD",
     "date": "2025-07-23T10:30:00-04:00",
     "impact": "Low",
-    "forecast": "-1.4M",
-    "previous": "-3.9M"
-  },
-  {
-    "title": "President Trump Speaks",
-    "country": "USD",
-    "date": "2025-07-23T17:00:00-04:00",
-    "impact": "Medium",
     "forecast": "",
-    "previous": ""
+    "previous": "-3.9M"
   },
   {
     "title": "Flash Manufacturing PMI",
@@ -252,7 +244,7 @@
     "country": "EUR",
     "date": "2025-07-24T02:00:00-04:00",
     "impact": "Low",
-    "forecast": "-19.4",
+    "forecast": "-19.2",
     "previous": "-20.3"
   },
   {
@@ -260,7 +252,7 @@
     "country": "EUR",
     "date": "2025-07-24T03:00:00-04:00",
     "impact": "Low",
-    "forecast": "10.6%",
+    "forecast": "11.2%",
     "previous": "11.4%"
   },
   {
@@ -316,7 +308,7 @@
     "country": "GBP",
     "date": "2025-07-24T04:30:00-04:00",
     "impact": "High",
-    "forecast": "47.9",
+    "forecast": "48.1",
     "previous": "47.7"
   },
   {
@@ -324,7 +316,7 @@
     "country": "GBP",
     "date": "2025-07-24T04:30:00-04:00",
     "impact": "High",
-    "forecast": "52.8",
+    "forecast": "52.9",
     "previous": "51.3"
   },
   {
@@ -356,7 +348,7 @@
     "country": "CAD",
     "date": "2025-07-24T08:30:00-04:00",
     "impact": "Medium",
-    "forecast": "-0.2%",
+    "forecast": "-0.1%",
     "previous": "-0.3%"
   },
   {
@@ -372,7 +364,7 @@
     "country": "USD",
     "date": "2025-07-24T08:30:00-04:00",
     "impact": "High",
-    "forecast": "227K",
+    "forecast": "229K",
     "previous": "221K"
   },
   {
@@ -412,7 +404,7 @@
     "country": "USD",
     "date": "2025-07-24T10:00:00-04:00",
     "impact": "Medium",
-    "forecast": "649K",
+    "forecast": "651K",
     "previous": "623K"
   },
   {
@@ -420,7 +412,7 @@
     "country": "USD",
     "date": "2025-07-24T10:30:00-04:00",
     "impact": "Low",
-    "forecast": "28B",
+    "forecast": "",
     "previous": "46B"
   },
   {
@@ -451,7 +443,7 @@
     "title": "Retail Sales m/m",
     "country": "GBP",
     "date": "2025-07-25T02:00:00-04:00",
-    "impact": "Medium",
+    "impact": "High",
     "forecast": "1.2%",
     "previous": "-2.7%"
   },
@@ -460,7 +452,7 @@
     "country": "EUR",
     "date": "2025-07-25T04:00:00-04:00",
     "impact": "Medium",
-    "forecast": "89.0",
+    "forecast": "89.2",
     "previous": "88.4"
   },
   {
@@ -484,7 +476,7 @@
     "country": "USD",
     "date": "2025-07-25T08:30:00-04:00",
     "impact": "Medium",
-    "forecast": "0.1%",
+    "forecast": "0.0%",
     "previous": "0.5%"
   },
   {
@@ -492,7 +484,7 @@
     "country": "USD",
     "date": "2025-07-25T08:30:00-04:00",
     "impact": "Medium",
-    "forecast": "-10.4%",
+    "forecast": "-10.3%",
     "previous": "16.4%"
   },
   {
